@@ -37,6 +37,10 @@ bash scripts/ft3/submit_campaign.sh versions
 `cpus-per-task=32`, and a 3-day Slurm limit. Set `CONSTRAINT=clk`, `hwl`,
 `epyc`, or `ilk` to keep all runs on one node family.
 
+`ROWS_PER_TASK=8` by default, so each Slurm array element executes eight
+manifest rows sequentially. This keeps large campaigns below common array and
+submit-count limits.
+
 Every campaign writes one folder under `results/` with:
 
 - `manifest.csv`: complete run matrix.

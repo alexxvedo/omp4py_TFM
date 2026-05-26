@@ -17,6 +17,7 @@ constraint="${CONSTRAINT:-}"
 cpus_per_task="${CPUS_PER_TASK:-32}"
 mem_per_cpu="${MEM_PER_CPU:-4G}"
 max_parallel="${MAX_PARALLEL:-8}"
+rows_per_task="${ROWS_PER_TASK:-8}"
 if [ -n "${TIME_LIMIT:-}" ]; then
     time_limit="$TIME_LIMIT"
 elif [ "$profile" = "pilot" ]; then
@@ -51,10 +52,13 @@ fi
     printf 'cpus_per_task = %s\n' "$cpus_per_task"
     printf 'mem_per_cpu = %s\n' "$mem_per_cpu"
     printf 'max_parallel = %s\n' "$max_parallel"
+    printf 'rows_per_task = %s\n' "$rows_per_task"
     printf 'time_limit = %s\n' "$time_limit"
     printf 'run_count = %s\n' "$run_count"
     "$runner_python" -c 'import sys; print("runner =", sys.version.replace("\n", " "))'
 } > "$campaign_dir/env.txt"
+
+array_task_count="$(( (run_count + rows_per_task - 1) / rows_per_task ))"
 
 sbatch_args=(
     --partition="$partition" \
@@ -62,10 +66,10 @@ sbatch_args=(
     --cpus-per-task="$cpus_per_task" \
     --mem-per-cpu="$mem_per_cpu" \
     --time="$time_limit" \
-    --array="1-${run_count}%${max_parallel}" \
+    --array="1-${array_task_count}%${max_parallel}" \
     --output="$campaign_dir/slurm/%x-%A_%a.out" \
     --error="$campaign_dir/slurm/%x-%A_%a.err" \
-    --export=ALL,FT3_ROOT="$FT3_ROOT",CAMPAIGN_DIR="$campaign_dir",MANIFEST="$manifest" \
+    --export=ALL,FT3_ROOT="$FT3_ROOT",CAMPAIGN_DIR="$campaign_dir",MANIFEST="$manifest",RUN_COUNT="$run_count",ROWS_PER_TASK="$rows_per_task" \
 )
 
 if [ -n "$constraint" ]; then
@@ -77,3 +81,4 @@ fi
 printf 'campaign = %s\n' "$campaign_dir"
 printf 'manifest = %s\n' "$manifest"
 printf 'runs = %s\n' "$run_count"
+printf 'array_tasks = %s\n' "$array_task_count"
