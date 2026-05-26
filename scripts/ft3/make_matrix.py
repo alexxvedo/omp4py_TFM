@@ -28,6 +28,26 @@ def add_rows(rows, python_tags, benchmarks, classes, modes, threads, reps, timeo
                             )
 
 
+def add_rows_interleaved_python(rows, python_tags, benchmarks, classes, modes, threads, reps, timeout):
+    for benchmark in benchmarks:
+        for class_name in classes:
+            for mode in modes:
+                for thread_count in threads:
+                    for rep in range(1, reps + 1):
+                        for python_tag in python_tags:
+                            rows.append(
+                                {
+                                    "python_tag": python_tag,
+                                    "benchmark": benchmark,
+                                    "class": class_name,
+                                    "mode": mode,
+                                    "threads": thread_count,
+                                    "rep": rep,
+                                    "timeout": timeout,
+                                }
+                            )
+
+
 def build_profile(profile):
     rows = []
 
@@ -39,8 +59,8 @@ def build_profile(profile):
         add_rows(rows, ["3.15t"], BENCHMARKS, ["A"], [3], THREADS_FULL, 3, 10800)
     elif profile == "versions":
         tags = ["3.13t", "3.14t", "3.15t"]
-        add_rows(rows, tags, BENCHMARKS, ["S"], [0, 1, 2, 3], [1, 4, 16, 64], 5, 3600)
-        add_rows(rows, tags, BENCHMARKS, ["W"], [3], [1, 4, 16, 64], 3, 7200)
+        add_rows_interleaved_python(rows, tags, BENCHMARKS, ["S"], [0, 1, 2, 3], [1, 4, 16, 64], 5, 3600)
+        add_rows_interleaved_python(rows, tags, BENCHMARKS, ["W"], [3], [1, 4, 16, 64], 3, 7200)
     else:
         raise ValueError("unknown profile: %s" % profile)
 
