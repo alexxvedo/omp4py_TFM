@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.egg-info/
+
+.coverage
+coverage_html_report/
+.pytest_cache/
+
+build/
+dist/
+
+.vscode/
+*_omp_d.py
