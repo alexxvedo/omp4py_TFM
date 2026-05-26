@@ -97,6 +97,7 @@ def run(row, campaign_dir):
     mode = int(row["mode"])
     threads = int(row["threads"])
     timeout = int(row.get("timeout") or 3600)
+    name = safe_name(row)
 
     python_exe = venv_python(root, tag)
     if not python_exe.exists():
@@ -121,7 +122,14 @@ def run(row, campaign_dir):
     env.setdefault("OMP_PROC_BIND", "close")
     env.setdefault("OMP_PLACES", "cores")
     env["OMP4PY_CACHE"] = "1"
-    env["OMP4PY_CACHE_DIR"] = str(campaign_dir / "cache" / tag)
+    cache_scope = env.get("OMP4PY_CACHE_SCOPE", "run")
+    if cache_scope == "tag":
+        cache_dir = campaign_dir / "cache" / tag
+    elif cache_scope == "benchmark":
+        cache_dir = campaign_dir / "cache" / tag / bench / ("m%d" % mode)
+    else:
+        cache_dir = campaign_dir / "cache" / tag / name
+    env["OMP4PY_CACHE_DIR"] = str(cache_dir)
 
     command = [
         str(python_exe),
@@ -134,7 +142,6 @@ def run(row, campaign_dir):
         str(threads),
     ]
 
-    name = safe_name(row)
     raw_path = campaign_dir / "raw" / ("%s.txt" % name)
     record_path = campaign_dir / "records" / ("%s.json" % name)
 

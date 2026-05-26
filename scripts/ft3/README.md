@@ -42,6 +42,11 @@ Every campaign writes one folder under `results/` with:
 - `summary_best.csv`: grouped best/mean values.
 - `env.txt`: campaign metadata.
 
+By default, each run gets its own OMP4Py cache directory. This avoids races when
+Slurm starts repeated runs of the same benchmark at the same time. To reuse one
+cache per Python version, export `OMP4PY_CACHE_SCOPE=tag` only after a warmup has
+already populated the cache.
+
 Refresh summaries after a campaign finishes:
 
 ```bash
