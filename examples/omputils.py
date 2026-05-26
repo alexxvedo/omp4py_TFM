@@ -1,4 +1,6 @@
+import os
 import sys
+import sysconfig
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -57,6 +59,9 @@ use_compiled = lambda: _mode == 2 or _mode == 3
 use_compiled_types = lambda: _mode == 3
 use_pyomp = lambda: _mode == -1
 
+_SOABI = sysconfig.get_config_var("SOABI") or sys.implementation.cache_tag
+_PYTHON_ABI = "-".join(_SOABI.split("-")[:2]) if "-" in _SOABI else _SOABI
+
 try:
     from numba.openmp import njit
     from numba.openmp import omp_set_num_threads as pyomp_set_num_threads, openmp_context as pyomp
@@ -80,13 +85,22 @@ try:
     )
     from omp4py.pure import omp as omp_pure, omp_set_num_threads as omp4py_pure_set_num_threads
 
-    _CRUNTIME_BUILD = PROJECT_ROOT / "build" / "libs" / "omp4py" / "cruntime"
+    _CRUNTIME_BUILD_ENV = os.environ.get("OMP4PY_CRUNTIME_BUILD")
+    _CRUNTIME_BUILD_CANDIDATES = []
+    if _CRUNTIME_BUILD_ENV:
+        _CRUNTIME_BUILD_CANDIDATES.append(Path(_CRUNTIME_BUILD_ENV))
+    _CRUNTIME_BUILD_CANDIDATES.extend([
+        PROJECT_ROOT / "build" / f"lib.{sysconfig.get_platform()}-{_PYTHON_ABI}" / "omp4py" / "cruntime",
+        PROJECT_ROOT / "build" / "libs" / "omp4py" / "cruntime",
+    ])
     _compiled_api = None
     omp4py_compiled_set_num_threads = None
     omp4py_compiled_get_max_threads = None
     omp4py_compiled_get_num_threads = None
     omp4py_compiled_get_thread_num = None
-    if _CRUNTIME_BUILD.is_dir():
+    for _CRUNTIME_BUILD in _CRUNTIME_BUILD_CANDIDATES:
+        if not _CRUNTIME_BUILD.is_dir():
+            continue
         _cruntime_path = str(_CRUNTIME_BUILD)
         if _cruntime_path not in _omp4py_cruntime.__path__:
             _omp4py_cruntime.__path__.insert(0, _cruntime_path)
@@ -94,6 +108,8 @@ try:
             from omp4py.cruntime import api as _compiled_api
         except ImportError:
             _compiled_api = None
+        if _compiled_api is not None:
+            break
 
     if _compiled_api is not None:
         omp4py_compiled_set_num_threads = _compiled_api.omp_set_num_threads
