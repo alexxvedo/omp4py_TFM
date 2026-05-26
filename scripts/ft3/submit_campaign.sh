@@ -5,13 +5,25 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/env.sh"
 
 profile="${1:-pilot}"
-partition="${PARTITION:-short}"
+if [ -n "${PARTITION:-}" ]; then
+    partition="$PARTITION"
+elif [ "$profile" = "pilot" ]; then
+    partition="short"
+else
+    partition="medium"
+fi
 qos="${QOS:-$partition}"
 constraint="${CONSTRAINT:-}"
-cpus_per_task="${CPUS_PER_TASK:-64}"
+cpus_per_task="${CPUS_PER_TASK:-32}"
 mem_per_cpu="${MEM_PER_CPU:-4G}"
 max_parallel="${MAX_PARALLEL:-8}"
-time_limit="${TIME_LIMIT:-06:00:00}"
+if [ -n "${TIME_LIMIT:-}" ]; then
+    time_limit="$TIME_LIMIT"
+elif [ "$profile" = "pilot" ]; then
+    time_limit="06:00:00"
+else
+    time_limit="3-00:00:00"
+fi
 timestamp="$(date +%Y%m%d_%H%M%S)"
 campaign_dir="${CAMPAIGN_DIR:-$FT3_ROOT/results/${timestamp}_${profile}}"
 manifest="$campaign_dir/manifest.csv"

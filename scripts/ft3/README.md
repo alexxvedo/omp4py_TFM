@@ -24,14 +24,18 @@ bash scripts/ft3/submit_campaign.sh pilot
 Submit the full Python 3.15 campaign:
 
 ```bash
-PARTITION=medium QOS=medium TIME_LIMIT=1-00:00:00 bash scripts/ft3/submit_campaign.sh full315
+bash scripts/ft3/submit_campaign.sh full315
 ```
 
 Submit the Python-version comparison:
 
 ```bash
-PARTITION=medium QOS=medium TIME_LIMIT=1-00:00:00 bash scripts/ft3/submit_campaign.sh versions
+bash scripts/ft3/submit_campaign.sh versions
 ```
+
+`full315` and `versions` default to `partition=medium`, `qos=medium`,
+`cpus-per-task=32`, and a 3-day Slurm limit. Set `CONSTRAINT=clk`, `hwl`,
+`epyc`, or `ilk` to keep all runs on one node family.
 
 Every campaign writes one folder under `results/` with:
 

@@ -5,7 +5,9 @@ from pathlib import Path
 
 
 BENCHMARKS = ["CG", "EP", "FT", "IS", "MG"]
-THREADS_FULL = [1, 2, 4, 8, 16, 32, 64]
+THREADS_FULL = [1, 2, 4, 8, 16, 32]
+THREADS_COMPARE = [1, 4, 16, 32]
+LONG_TIMEOUT = 259000
 
 
 def add_rows(rows, python_tags, benchmarks, classes, modes, threads, reps, timeout):
@@ -54,13 +56,13 @@ def build_profile(profile):
     if profile == "pilot":
         add_rows(rows, ["3.15t"], BENCHMARKS, ["S"], [2, 3], [1, 4], 1, 1800)
     elif profile == "full315":
-        add_rows(rows, ["3.15t"], BENCHMARKS, ["S"], [0, 1, 2, 3], THREADS_FULL, 3, 3600)
-        add_rows(rows, ["3.15t"], BENCHMARKS, ["W"], [2, 3], THREADS_FULL, 3, 7200)
-        add_rows(rows, ["3.15t"], BENCHMARKS, ["A"], [3], THREADS_FULL, 3, 10800)
+        add_rows(rows, ["3.15t"], BENCHMARKS, ["S"], [0, 1, 2, 3], THREADS_FULL, 3, LONG_TIMEOUT)
+        add_rows(rows, ["3.15t"], BENCHMARKS, ["W"], [2, 3], THREADS_FULL, 3, LONG_TIMEOUT)
+        add_rows(rows, ["3.15t"], BENCHMARKS, ["A"], [3], THREADS_FULL, 3, LONG_TIMEOUT)
     elif profile == "versions":
         tags = ["3.13t", "3.14t", "3.15t"]
-        add_rows_interleaved_python(rows, tags, BENCHMARKS, ["S"], [0, 1, 2, 3], [1, 4, 16, 64], 5, 3600)
-        add_rows_interleaved_python(rows, tags, BENCHMARKS, ["W"], [3], [1, 4, 16, 64], 3, 7200)
+        add_rows_interleaved_python(rows, tags, BENCHMARKS, ["S"], [2, 3], THREADS_COMPARE, 5, LONG_TIMEOUT)
+        add_rows_interleaved_python(rows, tags, BENCHMARKS, ["W"], [2, 3], THREADS_COMPARE, 3, LONG_TIMEOUT)
     else:
         raise ValueError("unknown profile: %s" % profile)
 
@@ -83,7 +85,7 @@ def main():
     parser.add_argument("--benchmarks", help="Comma-separated override, e.g. CG,EP,FT,IS,MG")
     parser.add_argument("--classes", help="Comma-separated override, e.g. S,W,A")
     parser.add_argument("--modes", help="Comma-separated override, e.g. 2,3")
-    parser.add_argument("--threads", help="Comma-separated override, e.g. 1,4,16,64")
+    parser.add_argument("--threads", help="Comma-separated override, e.g. 1,4,16,32")
     parser.add_argument("--reps", type=int, help="Override repetitions")
     parser.add_argument("--timeout", type=int, help="Override per-run timeout in seconds")
     args = parser.parse_args()
