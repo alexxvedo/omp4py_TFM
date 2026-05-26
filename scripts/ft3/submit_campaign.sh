@@ -7,6 +7,7 @@ source "$SCRIPT_DIR/env.sh"
 profile="${1:-pilot}"
 partition="${PARTITION:-short}"
 qos="${QOS:-$partition}"
+constraint="${CONSTRAINT:-}"
 cpus_per_task="${CPUS_PER_TASK:-64}"
 mem_per_cpu="${MEM_PER_CPU:-4G}"
 max_parallel="${MAX_PARALLEL:-8}"
@@ -34,6 +35,7 @@ fi
     printf 'profile = %s\n' "$profile"
     printf 'partition = %s\n' "$partition"
     printf 'qos = %s\n' "$qos"
+    printf 'constraint = %s\n' "$constraint"
     printf 'cpus_per_task = %s\n' "$cpus_per_task"
     printf 'mem_per_cpu = %s\n' "$mem_per_cpu"
     printf 'max_parallel = %s\n' "$max_parallel"
@@ -42,7 +44,7 @@ fi
     "$runner_python" -c 'import sys; print("runner =", sys.version.replace("\n", " "))'
 } > "$campaign_dir/env.txt"
 
-/bin/sbatch \
+sbatch_args=(
     --partition="$partition" \
     --qos="$qos" \
     --cpus-per-task="$cpus_per_task" \
@@ -52,7 +54,13 @@ fi
     --output="$campaign_dir/slurm/%x-%A_%a.out" \
     --error="$campaign_dir/slurm/%x-%A_%a.err" \
     --export=ALL,FT3_ROOT="$FT3_ROOT",CAMPAIGN_DIR="$campaign_dir",MANIFEST="$manifest" \
-    "$SCRIPT_DIR/array_run.sbatch"
+)
+
+if [ -n "$constraint" ]; then
+    sbatch_args+=(--constraint="$constraint")
+fi
+
+/bin/sbatch "${sbatch_args[@]}" "$SCRIPT_DIR/array_run.sbatch"
 
 printf 'campaign = %s\n' "$campaign_dir"
 printf 'manifest = %s\n' "$manifest"
