@@ -1,0 +1,20 @@
+{
+  "benchmark": "FT",
+  "class": "W",
+  "mode": 2,
+  "mops": 12.84,
+  "node": "clk-63",
+  "npb_seconds": 29.02,
+  "python_tag": "3.14t",
+  "python_version": "3.14.4 free-threading build (main, May 25 2026, 19:26:08) [GCC 10.1.0]",
+  "raw_log": "/mnt/netapp2/Store_uni/home/ulc/cursos/curso380/omp4py_TFM/results/20260526_130136_versions/raw/py314t__FT__W__m2__t32__r03.txt",
+  "rep": 3,
+  "returncode": 0,
+  "slurm_array_task_id": "98",
+  "slurm_job_id": "7165004",
+  "threads": 32,
+  "timed_out": false,
+  "timeout": 259000,
+  "verification": "SUCCESSFUL",
+  "wall_seconds": 123.61742115020752
+}
