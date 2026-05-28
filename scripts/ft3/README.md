@@ -33,6 +33,12 @@ Submit the Python-version comparison:
 bash scripts/ft3/submit_campaign.sh versions
 ```
 
+Submit only the missing 2- and 8-thread rows for the Python-version comparison:
+
+```bash
+bash scripts/ft3/submit_campaign.sh versions_extra_threads
+```
+
 `full315` and `versions` default to `partition=medium`, `qos=medium`,
 `cpus-per-task=32`, and a 3-day Slurm limit. Set `CONSTRAINT=clk`, `hwl`,
 `epyc`, or `ilk` to keep all runs on one node family.
