@@ -542,6 +542,9 @@ COLORS = {
     "M1": (90, 125, 190),
     "M2": (205, 125, 50),
     "M3": (70, 150, 90),
+    "S": (40, 105, 180),
+    "W": (205, 80, 70),
+    "A": (75, 150, 90),
 }
 
 
@@ -819,6 +822,9 @@ def make_figures_matplotlib(full: dict, versions: dict) -> bool:
         "M1": "#5a7dbe",
         "M2": "#cd7d32",
         "M3": "#46965a",
+        "S": "#2869b4",
+        "W": "#cd5046",
+        "A": "#4b965a",
     }
 
     def z(values):
@@ -854,6 +860,58 @@ def make_figures_matplotlib(full: dict, versions: dict) -> bool:
         ax.set_title(f"Python 3.15t, modo 3: escalabilidad en clase {cls}")
         ax.legend(ncol=5, loc="upper center", bbox_to_anchor=(0.5, -0.12))
         save_mpl(fig, FIG_RES_DIR / f"mode3_speedup_clase_{cls.lower()}")
+        plt.close(fig)
+
+    for cls in CLASSES:
+        fig, ax = plt.subplots()
+        for bench in BENCHES:
+            vals = [value(full, "3.15t", bench, cls, 3, t) for t in THREADS_FULL]
+            if any(v is not None and v > 0 for v in vals):
+                ax.plot(THREADS_FULL, vals, marker="o", linewidth=2, label=bench, color=color[bench])
+        ax.set_xscale("log", base=2)
+        ax.set_yscale("log")
+        ax.set_xticks(THREADS_FULL)
+        ax.set_xticklabels([str(t) for t in THREADS_FULL])
+        ax.set_xlabel("Hilos")
+        ax.set_ylabel("Tiempo NAS (s, escala log)")
+        ax.set_title(f"Python 3.15t, modo 3: tiempos en clase {cls}")
+        ax.legend(ncol=5, loc="upper center", bbox_to_anchor=(0.5, -0.12))
+        save_mpl(fig, FIG_RES_DIR / f"mode3_tiempo_clase_{cls.lower()}")
+        plt.close(fig)
+
+    for bench in BENCHES:
+        fig, ax = plt.subplots()
+        for cls in CLASSES:
+            vals = [speedup(full, "3.15t", bench, cls, 3, t) for t in THREADS_FULL]
+            if any(v is not None for v in vals):
+                ax.plot(THREADS_FULL, vals, marker="o", linewidth=2, label=f"Clase {cls}", color=color[cls])
+        ax.axhline(1.0, color="#333333", linewidth=1, linestyle="--")
+        ax.set_xscale("log", base=2)
+        ax.set_xticks(THREADS_FULL)
+        ax.set_xticklabels([str(t) for t in THREADS_FULL])
+        ax.set_ylim(bottom=0)
+        ax.set_xlabel("Hilos")
+        ax.set_ylabel("Speedup frente a 1 hilo")
+        ax.set_title(f"{bench}: speedup por clase en Python 3.15t, modo 3")
+        ax.legend(ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.12))
+        save_mpl(fig, FIG_RES_DIR / f"benchmark_{bench.lower()}_speedup_clases")
+        plt.close(fig)
+
+    for bench in BENCHES:
+        fig, ax = plt.subplots()
+        for cls in CLASSES:
+            vals = [value(full, "3.15t", bench, cls, 3, t) for t in THREADS_FULL]
+            if any(v is not None and v > 0 for v in vals):
+                ax.plot(THREADS_FULL, vals, marker="o", linewidth=2, label=f"Clase {cls}", color=color[cls])
+        ax.set_xscale("log", base=2)
+        ax.set_yscale("log")
+        ax.set_xticks(THREADS_FULL)
+        ax.set_xticklabels([str(t) for t in THREADS_FULL])
+        ax.set_xlabel("Hilos")
+        ax.set_ylabel("Tiempo NAS (s, escala log)")
+        ax.set_title(f"{bench}: tiempos por clase en Python 3.15t, modo 3")
+        ax.legend(ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.12))
+        save_mpl(fig, FIG_RES_DIR / f"benchmark_{bench.lower()}_tiempos_clases")
         plt.close(fig)
 
     groups = [f"{cls}-{bench}" for cls in CLASSES for bench in BENCHES]
@@ -897,7 +955,7 @@ def make_figures_matplotlib(full: dict, versions: dict) -> bool:
     plt.close(fig)
 
     for cls in ["S", "W"]:
-        for bench in ["EP", "FT"]:
+        for bench in BENCHES:
             fig, ax = plt.subplots()
             for py in PYS:
                 vals = z([speedup(versions, py, bench, cls, 3, t) for t in THREADS_VERSIONS])
@@ -911,6 +969,22 @@ def make_figures_matplotlib(full: dict, versions: dict) -> bool:
             ax.set_title(f"{bench} clase {cls}, modo 3: comparación entre versiones")
             ax.legend(ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.12))
             save_mpl(fig, FIG_VER_DIR / f"{bench.lower()}_{cls.lower()}_speedup_versiones")
+            plt.close(fig)
+
+            fig, ax = plt.subplots()
+            for py in PYS:
+                vals = [value(versions, py, bench, cls, 3, t) for t in THREADS_VERSIONS]
+                if any(v is not None and v > 0 for v in vals):
+                    ax.plot(THREADS_VERSIONS, vals, marker="o", linewidth=2, label=py, color=color[py])
+            ax.set_xscale("log", base=2)
+            ax.set_yscale("log")
+            ax.set_xticks(THREADS_VERSIONS)
+            ax.set_xticklabels([str(t) for t in THREADS_VERSIONS])
+            ax.set_xlabel("Hilos")
+            ax.set_ylabel("Tiempo NAS (s, escala log)")
+            ax.set_title(f"{bench} clase {cls}, modo 3: tiempos por versión")
+            ax.legend(ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.12))
+            save_mpl(fig, FIG_VER_DIR / f"{bench.lower()}_{cls.lower()}_tiempos_versiones")
             plt.close(fig)
     return True
 
@@ -938,6 +1012,45 @@ def make_figures(full: dict, versions: dict) -> None:
             logy=False,
         )
 
+    for cls in CLASSES:
+        series = []
+        for bench in BENCHES:
+            series.append((bench, [value(full, "3.15t", bench, cls, 3, t) for t in THREADS_FULL]))
+        line_chart(
+            FIG_RES_DIR / f"mode3_tiempo_clase_{cls.lower()}.png",
+            f"Python 3.15t modo 3: tiempos clase {cls}",
+            [str(t) for t in THREADS_FULL],
+            series,
+            "segundos log",
+            logy=True,
+        )
+
+    for bench in BENCHES:
+        series = []
+        for cls in CLASSES:
+            series.append((cls, [speedup(full, "3.15t", bench, cls, 3, t) for t in THREADS_FULL]))
+        line_chart(
+            FIG_RES_DIR / f"benchmark_{bench.lower()}_speedup_clases.png",
+            f"{bench}: speedup por clase",
+            [str(t) for t in THREADS_FULL],
+            series,
+            "speedup",
+            logy=False,
+        )
+
+    for bench in BENCHES:
+        series = []
+        for cls in CLASSES:
+            series.append((cls, [value(full, "3.15t", bench, cls, 3, t) for t in THREADS_FULL]))
+        line_chart(
+            FIG_RES_DIR / f"benchmark_{bench.lower()}_tiempos_clases.png",
+            f"{bench}: tiempos por clase",
+            [str(t) for t in THREADS_FULL],
+            series,
+            "segundos log",
+            logy=True,
+        )
+
     groups = [f"{cls}-{bench}" for cls in CLASSES for bench in BENCHES]
     bars = [("M3", [speedup(full, "3.15t", bench, cls, 3, 32) for cls in CLASSES for bench in BENCHES])]
     grouped_bar(FIG_RES_DIR / "mode3_speedup32_global.png", "Python 3.15t modo 3: speedup a 32 hilos", groups, bars, "speedup", logy=False)
@@ -950,7 +1063,7 @@ def make_figures(full: dict, versions: dict) -> None:
     grouped_bar(FIG_VER_DIR / "mode3_speedup32_versiones.png", "Modo 3: speedup a 32 hilos por version", groups, bars, "speedup", logy=False)
 
     for cls in ["S", "W"]:
-        for bench in ["EP", "FT"]:
+        for bench in BENCHES:
             series = [(py, [speedup(versions, py, bench, cls, 3, t) for t in THREADS_VERSIONS]) for py in PYS]
             line_chart(
                 FIG_VER_DIR / f"{bench.lower()}_{cls.lower()}_speedup_versiones.png",
@@ -959,6 +1072,15 @@ def make_figures(full: dict, versions: dict) -> None:
                 series,
                 "speedup",
                 logy=False,
+            )
+            series = [(py, [value(versions, py, bench, cls, 3, t) for t in THREADS_VERSIONS]) for py in PYS]
+            line_chart(
+                FIG_VER_DIR / f"{bench.lower()}_{cls.lower()}_tiempos_versiones.png",
+                f"{bench} clase {cls}: tiempos modo 3",
+                [str(t) for t in THREADS_VERSIONS],
+                series,
+                "segundos log",
+                logy=True,
             )
 
 

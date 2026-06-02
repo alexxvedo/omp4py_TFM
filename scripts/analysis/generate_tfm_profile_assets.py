@@ -9,7 +9,7 @@ import math
 from collections import defaultdict
 from pathlib import Path
 
-from generate_tfm_results_assets import Canvas, COLORS, fmt_num, table_env, write, y_lin_map
+from generate_tfm_results_assets import Canvas, COLORS, fmt_num, save_mpl, table_env, write, y_lin_map
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -212,6 +212,12 @@ def line_plot(path: Path, title: str, xlabels: list[str], series: list[tuple[str
 
 
 def make_figures(summary: dict) -> None:
+    if make_figures_matplotlib(summary):
+        return
+
+    def pct(v: float | None) -> float | None:
+        return None if v is None else v * 100.0
+
     xlabels = [str(t) for t in THREADS_EP_FT]
     line_plot(
         FIG_DIR / "ep_ft_cpus.png",
@@ -224,6 +230,30 @@ def make_figures(summary: dict) -> None:
             ("FT315", [value(summary, "3.15t", "FT", t, "perf_cpus_utilized") for t in THREADS_EP_FT]),
         ],
         "CPUs usadas",
+    )
+    line_plot(
+        FIG_DIR / "ep_ft_ipc.png",
+        "EP FT IPC PERF",
+        xlabels,
+        [
+            ("EP314", [value(summary, "3.14t", "EP", t, "perf_ipc") for t in THREADS_EP_FT]),
+            ("EP315", [value(summary, "3.15t", "EP", t, "perf_ipc") for t in THREADS_EP_FT]),
+            ("FT314", [value(summary, "3.14t", "FT", t, "perf_ipc") for t in THREADS_EP_FT]),
+            ("FT315", [value(summary, "3.15t", "FT", t, "perf_ipc") for t in THREADS_EP_FT]),
+        ],
+        "IPC",
+    )
+    line_plot(
+        FIG_DIR / "ep_ft_cache.png",
+        "EP FT FALLOS CACHE PERF",
+        xlabels,
+        [
+            ("EP314", [pct(value(summary, "3.14t", "EP", t, "perf_cache_miss_ratio")) for t in THREADS_EP_FT]),
+            ("EP315", [pct(value(summary, "3.15t", "EP", t, "perf_cache_miss_ratio")) for t in THREADS_EP_FT]),
+            ("FT314", [pct(value(summary, "3.14t", "FT", t, "perf_cache_miss_ratio")) for t in THREADS_EP_FT]),
+            ("FT315", [pct(value(summary, "3.15t", "FT", t, "perf_cache_miss_ratio")) for t in THREADS_EP_FT]),
+        ],
+        "Fallos cache (%)",
     )
 
     xlabels = [str(t) for t in THREADS_OTHER]
@@ -239,6 +269,130 @@ def make_figures(summary: dict) -> None:
             ],
             "CPUs usadas",
         )
+        line_plot(
+            FIG_DIR / f"cg_is_mg_ipc_{py.replace('.', '')}.png",
+            f"CG IS MG IPC PYTHON {py}",
+            xlabels,
+            [
+                ("CG", [value(summary, py, "CG", t, "perf_ipc") for t in THREADS_OTHER]),
+                ("IS", [value(summary, py, "IS", t, "perf_ipc") for t in THREADS_OTHER]),
+                ("MG", [value(summary, py, "MG", t, "perf_ipc") for t in THREADS_OTHER]),
+            ],
+            "IPC",
+        )
+        line_plot(
+            FIG_DIR / f"cg_is_mg_cache_{py.replace('.', '')}.png",
+            f"CG IS MG FALLOS CACHE PYTHON {py}",
+            xlabels,
+            [
+                ("CG", [pct(value(summary, py, "CG", t, "perf_cache_miss_ratio")) for t in THREADS_OTHER]),
+                ("IS", [pct(value(summary, py, "IS", t, "perf_cache_miss_ratio")) for t in THREADS_OTHER]),
+                ("MG", [pct(value(summary, py, "MG", t, "perf_cache_miss_ratio")) for t in THREADS_OTHER]),
+            ],
+            "Fallos cache (%)",
+        )
+
+
+def make_figures_matplotlib(summary: dict) -> bool:
+    try:
+        import matplotlib.pyplot as plt
+    except Exception:
+        return False
+
+    plt.rcParams.update(
+        {
+            "figure.figsize": (10.5, 5.8),
+            "axes.grid": True,
+            "grid.alpha": 0.25,
+            "axes.spines.top": False,
+            "axes.spines.right": False,
+            "font.size": 10,
+            "legend.frameon": False,
+        }
+    )
+
+    colors = {
+        "EP314": "#c84b37",
+        "EP315": "#777f87",
+        "FT314": "#479052",
+        "FT315": "#2d5fa0",
+        "CG": "#1f5f9f",
+        "IS": "#965faa",
+        "MG": "#d79037",
+    }
+
+    def metric_value(py: str, bench: str, threads: int, column: str, scale: float = 1.0) -> float | None:
+        v = value(summary, py, bench, threads, column)
+        return None if v is None else v * scale
+
+    def plot_metric(path: Path, title: str, threads: list[int], series: list[tuple[str, list[float | None]]], ylabel: str) -> None:
+        fig, ax = plt.subplots()
+        for name, ys in series:
+            if any(v is not None for v in ys):
+                ax.plot(threads, ys, marker="o", linewidth=2, label=name, color=colors.get(name))
+        ax.set_xscale("log", base=2)
+        ax.set_xticks(threads)
+        ax.set_xticklabels([str(t) for t in threads])
+        ax.set_xlabel("Hilos")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
+        ax.legend(ncol=min(4, len(series)), loc="upper center", bbox_to_anchor=(0.5, -0.12))
+        save_mpl(fig, path)
+        plt.close(fig)
+
+    ep_ft_series = [
+        ("EP314", "3.14t", "EP"),
+        ("EP315", "3.15t", "EP"),
+        ("FT314", "3.14t", "FT"),
+        ("FT315", "3.15t", "FT"),
+    ]
+    plot_metric(
+        FIG_DIR / "ep_ft_cpus",
+        "EP y FT: CPUs utilizadas en perf stat",
+        THREADS_EP_FT,
+        [(name, [metric_value(py, bench, t, "perf_cpus_utilized") for t in THREADS_EP_FT]) for name, py, bench in ep_ft_series],
+        "CPUs utilizadas",
+    )
+    plot_metric(
+        FIG_DIR / "ep_ft_ipc",
+        "EP y FT: IPC en perf stat",
+        THREADS_EP_FT,
+        [(name, [metric_value(py, bench, t, "perf_ipc") for t in THREADS_EP_FT]) for name, py, bench in ep_ft_series],
+        "IPC",
+    )
+    plot_metric(
+        FIG_DIR / "ep_ft_cache",
+        "EP y FT: fallos de caché en perf stat",
+        THREADS_EP_FT,
+        [(name, [metric_value(py, bench, t, "perf_cache_miss_ratio", 100.0) for t in THREADS_EP_FT]) for name, py, bench in ep_ft_series],
+        "Fallos de caché (%)",
+    )
+
+    for py in PYS:
+        tag = py.replace(".", "")
+        plot_metric(
+            FIG_DIR / f"cg_is_mg_cpus_{tag}",
+            f"CG, IS y MG: CPUs utilizadas en Python {py}",
+            THREADS_OTHER,
+            [(bench, [metric_value(py, bench, t, "perf_cpus_utilized") for t in THREADS_OTHER]) for bench in ["CG", "IS", "MG"]],
+            "CPUs utilizadas",
+        )
+        plot_metric(
+            FIG_DIR / f"cg_is_mg_ipc_{tag}",
+            f"CG, IS y MG: IPC en Python {py}",
+            THREADS_OTHER,
+            [(bench, [metric_value(py, bench, t, "perf_ipc") for t in THREADS_OTHER]) for bench in ["CG", "IS", "MG"]],
+            "IPC",
+        )
+        plot_metric(
+            FIG_DIR / f"cg_is_mg_cache_{tag}",
+            f"CG, IS y MG: fallos de caché en Python {py}",
+            THREADS_OTHER,
+            [(bench, [metric_value(py, bench, t, "perf_cache_miss_ratio", 100.0) for t in THREADS_OTHER]) for bench in ["CG", "IS", "MG"]],
+            "Fallos de caché (%)",
+        )
+
+    return True
 
 
 def main() -> None:
