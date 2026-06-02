@@ -11,9 +11,12 @@ coverage_html_report/
 build/
 dist/
 results/*
+!results/README.md
 !results/ft3_20260526/
 !results/ft3_20260526/**
 results/ft3_20260526/analysis_summary.md
+!results/ft3_20260601/
+!results/ft3_20260601/**
 .venv-*/
 .omp4py-cache/
 
