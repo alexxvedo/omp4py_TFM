@@ -39,6 +39,12 @@ Submit only the missing 2- and 8-thread rows for the Python-version comparison:
 bash scripts/ft3/submit_campaign.sh versions_extra_threads
 ```
 
+Submit the profiling campaign used to compare the Python-version scaling:
+
+```bash
+bash scripts/ft3/submit_profile_campaign.sh profile_versions_core
+```
+
 `full315` and `versions` default to `partition=medium`, `qos=medium`,
 `cpus-per-task=32`, and a 3-day Slurm limit. Set `CONSTRAINT=clk`, `hwl`,
 `epyc`, or `ilk` to keep all runs on one node family.
@@ -65,4 +71,10 @@ Refresh summaries after a campaign finishes:
 
 ```bash
 python scripts/ft3/parse_results.py results/<campaign>
+```
+
+Refresh profiling summaries after a profiling campaign finishes:
+
+```bash
+python scripts/ft3/parse_profile_results.py results/<campaign>
 ```

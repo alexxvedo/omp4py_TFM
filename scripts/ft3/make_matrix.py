@@ -68,6 +68,13 @@ def build_profile(profile):
         tags = ["3.13t", "3.14t", "3.15t"]
         add_rows_interleaved_python(rows, tags, BENCHMARKS, ["S"], [2, 3], THREADS_COMPARE_EXTRA, 5, LONG_TIMEOUT)
         add_rows_interleaved_python(rows, tags, BENCHMARKS, ["W"], [2, 3], THREADS_COMPARE_EXTRA, 3, LONG_TIMEOUT)
+    elif profile == "profile_versions_core":
+        add_rows_interleaved_python(rows, ["3.14t", "3.15t"], ["EP", "FT"], ["W"], [3], [1, 8, 16, 32], 1, 7200)
+        add_rows_interleaved_python(rows, ["3.13t", "3.14t", "3.15t"], ["CG", "IS", "MG"], ["W"], [3], [1, 8, 32], 1, 7200)
+    elif profile == "profile_versions_is_retry":
+        add_rows_interleaved_python(rows, ["3.13t", "3.14t", "3.15t"], ["IS"], ["W"], [3], [1, 8, 32], 1, 7200)
+    elif profile == "profile_versions_mg_retry":
+        add_rows_interleaved_python(rows, ["3.13t", "3.14t", "3.15t"], ["MG"], ["W"], [3], [1, 8, 32], 1, 7200)
     else:
         raise ValueError("unknown profile: %s" % profile)
 
@@ -84,7 +91,19 @@ def parse_csv_strings(value):
 
 def main():
     parser = argparse.ArgumentParser(description="Generate FT3 benchmark matrices")
-    parser.add_argument("--profile", choices=["pilot", "full315", "versions", "versions_extra_threads"], required=True)
+    parser.add_argument(
+        "--profile",
+        choices=[
+            "pilot",
+            "full315",
+            "versions",
+            "versions_extra_threads",
+            "profile_versions_core",
+            "profile_versions_is_retry",
+            "profile_versions_mg_retry",
+        ],
+        required=True,
+    )
     parser.add_argument("--output", required=True)
     parser.add_argument("--python-tags", help="Comma-separated override, e.g. 3.15t")
     parser.add_argument("--benchmarks", help="Comma-separated override, e.g. CG,EP,FT,IS,MG")

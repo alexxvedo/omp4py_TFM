@@ -4,6 +4,7 @@ import csv
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -21,6 +22,19 @@ PYTHON_PREFIX_DEFAULT = {
     "3.14t": "~/opt/python/3.14.4t",
     "3.15t": "~/opt/python/3.15.0b1t",
 }
+
+PERF_EVENTS = [
+    "task-clock",
+    "context-switches",
+    "cpu-migrations",
+    "page-faults",
+    "cycles",
+    "instructions",
+    "cache-references",
+    "cache-misses",
+    "branches",
+    "branch-misses",
+]
 
 
 def repo_root():
@@ -76,6 +90,55 @@ def parse_output(text):
     return parsed
 
 
+def parse_perf_value(value):
+    value = value.strip()
+    if not value or value.startswith("<"):
+        return None
+    try:
+        if "." in value:
+            return float(value)
+        return int(value)
+    except ValueError:
+        return None
+
+
+def parse_perf_csv(path):
+    metrics = {}
+    if not path.exists():
+        return metrics
+
+    with path.open(newline="") as fh:
+        reader = csv.reader(fh)
+        for parts in reader:
+            if len(parts) < 3:
+                continue
+            event = parts[2].strip()
+            if not event:
+                continue
+            event = event.split(":", 1)[0]
+            value = parse_perf_value(parts[0])
+            metrics[event] = value
+            if event == "task-clock" and len(parts) >= 7 and parts[6].strip() == "CPUs utilized":
+                metrics["cpus_utilized"] = parse_perf_value(parts[5])
+
+    cycles = metrics.get("cycles")
+    instructions = metrics.get("instructions")
+    if cycles and instructions:
+        metrics["ipc"] = instructions / cycles
+
+    cache_refs = metrics.get("cache-references")
+    cache_misses = metrics.get("cache-misses")
+    if cache_refs and cache_misses:
+        metrics["cache_miss_ratio"] = cache_misses / cache_refs
+
+    branches = metrics.get("branches")
+    branch_misses = metrics.get("branch-misses")
+    if branches and branch_misses:
+        metrics["branch_miss_ratio"] = branch_misses / branches
+
+    return metrics
+
+
 def write_text(path, content):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w") as fh:
@@ -87,6 +150,44 @@ def write_json(path, payload):
     with path.open("w") as fh:
         json.dump(payload, fh, indent=2, sort_keys=True)
         fh.write("\n")
+
+
+def clear_python_cache_files(cache_dir):
+    """Keep compiled extensions but avoid reloading cached pure-Python omp wrappers."""
+    if not cache_dir.exists():
+        return
+    for path in cache_dir.glob("*.py"):
+        path.unlink()
+    shutil.rmtree(cache_dir / "__pycache__", ignore_errors=True)
+
+
+def run_command(command, env, cwd, timeout):
+    started = time.time()
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(cwd),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout,
+        )
+        return {
+            "timed_out": False,
+            "returncode": completed.returncode,
+            "stdout": completed.stdout,
+            "stderr": completed.stderr,
+            "wall_seconds": time.time() - started,
+        }
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "timed_out": True,
+            "returncode": None,
+            "stdout": exc.stdout or "",
+            "stderr": exc.stderr or "",
+            "wall_seconds": time.time() - started,
+        }
 
 
 def run(row, campaign_dir):
@@ -127,16 +228,10 @@ def run(row, campaign_dir):
         env.pop("OMP_PLACES", None)
         env.pop("GOMP_CPU_AFFINITY", None)
     env["OMP4PY_CACHE"] = "1"
-    cache_scope = env.get("OMP4PY_CACHE_SCOPE", "run")
-    if cache_scope == "tag":
-        cache_dir = campaign_dir / "cache" / tag
-    elif cache_scope == "benchmark":
-        cache_dir = campaign_dir / "cache" / tag / bench / ("m%d" % mode)
-    else:
-        cache_dir = campaign_dir / "cache" / tag / name
+    cache_dir = campaign_dir / "cache" / tag / bench / ("m%d" % mode)
     env["OMP4PY_CACHE_DIR"] = str(cache_dir)
 
-    command = [
+    benchmark_cmd = [
         str(python_exe),
         str(root / "examples" / ("%s_Python.py" % bench)),
         "-c",
@@ -149,43 +244,50 @@ def run(row, campaign_dir):
 
     raw_path = campaign_dir / "raw" / ("%s.txt" % name)
     record_path = campaign_dir / "records" / ("%s.json" % name)
+    perf_path = campaign_dir / "perf" / ("%s.csv" % name)
 
-    started = time.time()
-    try:
-        completed = subprocess.run(
-            command,
-            cwd=str(root),
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=timeout,
-        )
-        timed_out = False
-        returncode = completed.returncode
-        stdout = completed.stdout
-        stderr = completed.stderr
-    except subprocess.TimeoutExpired as exc:
-        timed_out = True
-        returncode = None
-        stdout = exc.stdout or ""
-        stderr = exc.stderr or ""
+    clear_python_cache_files(cache_dir)
+    warmup = run_command(benchmark_cmd, env, root, timeout)
+    clear_python_cache_files(cache_dir)
 
-    ended = time.time()
-    combined = stdout + "\n" + stderr
+    perf_cmd = [
+        "/bin/perf",
+        "stat",
+        "-x",
+        ",",
+        "-o",
+        str(perf_path),
+        "-e",
+        ",".join(PERF_EVENTS),
+        "--",
+    ] + benchmark_cmd
+    measured = run_command(perf_cmd, env, root, timeout)
+
+    combined = measured["stdout"] + "\n" + measured["stderr"]
     parsed = parse_output(combined)
+    perf_metrics = parse_perf_csv(perf_path)
 
     raw_content = [
-        "command = %s" % " ".join(command),
+        "warmup_command = %s" % " ".join(benchmark_cmd),
+        "measured_command = %s" % " ".join(perf_cmd),
         "cwd = %s" % root,
         "slurm_job_id = %s" % os.environ.get("SLURM_JOB_ID", ""),
         "slurm_array_task_id = %s" % os.environ.get("SLURM_ARRAY_TASK_ID", ""),
-        "wall_seconds = %.6f" % (ended - started),
+        "warmup_returncode = %s" % warmup["returncode"],
+        "warmup_timed_out = %s" % warmup["timed_out"],
+        "warmup_wall_seconds = %.6f" % warmup["wall_seconds"],
+        "measured_wall_seconds = %.6f" % measured["wall_seconds"],
         "",
-        "----- stdout -----",
-        stdout,
-        "----- stderr -----",
-        stderr,
+        "----- warmup stdout -----",
+        warmup["stdout"],
+        "----- warmup stderr -----",
+        warmup["stderr"],
+        "----- measured stdout -----",
+        measured["stdout"],
+        "----- measured stderr -----",
+        measured["stderr"],
+        "----- perf csv -----",
+        perf_path.read_text() if perf_path.exists() else "",
     ]
     write_text(raw_path, "\n".join(raw_content))
 
@@ -197,13 +299,18 @@ def run(row, campaign_dir):
         "threads": threads,
         "rep": int(row["rep"]),
         "timeout": timeout,
-        "returncode": returncode,
-        "timed_out": timed_out,
-        "wall_seconds": ended - started,
+        "returncode": measured["returncode"],
+        "timed_out": measured["timed_out"],
+        "warmup_returncode": warmup["returncode"],
+        "warmup_timed_out": warmup["timed_out"],
+        "warmup_wall_seconds": warmup["wall_seconds"],
+        "wall_seconds": measured["wall_seconds"],
         "npb_seconds": parsed["seconds"],
         "mops": parsed["mops"],
         "verification": parsed["verification"],
         "python_version": parsed["python_version"],
+        "perf": perf_metrics,
+        "perf_csv": str(perf_path),
         "raw_log": str(raw_path),
         "slurm_job_id": os.environ.get("SLURM_JOB_ID"),
         "slurm_array_task_id": os.environ.get("SLURM_ARRAY_TASK_ID"),
@@ -214,7 +321,7 @@ def run(row, campaign_dir):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run one FT3 benchmark manifest row")
+    parser = argparse.ArgumentParser(description="Run one FT3 profiling manifest row")
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--index", type=int, required=True, help="1-based row index excluding CSV header")
     parser.add_argument("--campaign-dir", required=True)
