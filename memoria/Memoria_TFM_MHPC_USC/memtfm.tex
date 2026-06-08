@@ -1,0 +1,81 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Preámbulo                                                                    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[11pt,a4paper,titlepage,twoside,openright,openbib]{report}
+
+\usepackage{styletfm}
+
+\hypersetup{pdfauthor={Alejandro Vedo Godines},
+            pdftitle={Desarrollo y evaluación de aplicaciones paralelas con OMP4Py},
+            pdfsubject={Traballo Fin de Máster},
+            pdfkeywords={OMP4Py, OpenMP, Python, NAS Parallel Benchmarks, HPC}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Cuerpo                                                                      %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ % Preliminares del documento           %
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ \include{portada/portada}
+ \paginaenblanco
+ \dedicatoria{}
+ \paginaenblanco
+ \paginaenblanco
+ \begin{agradecimientos}
+ A mis tutores, César Alfredo Piñeiro Pomar y Juan Carlos Pichel Campos, por la
+ orientación técnica durante el desarrollo del trabajo y por facilitar el
+ contexto del proyecto OMP4Py. A las personas que han contribuido al desarrollo
+ original de OMP4Py y de los NAS Parallel Benchmarks, cuyo trabajo ha servido
+ como base para esta evaluación.
+ \end{agradecimientos}
+ 
+ \newpage
+ \include{portada/resumen}
+ \newpage
+
+ \pagenumbering{roman}
+ \setcounter{page}{1}
+
+ \tableofcontents
+ \listoffigures
+ \listoftables
+ \cleardoublepage
+ 
+ \pagenumbering{arabic}
+ \setcounter{page}{1}
+
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ % Capítulos                            %
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ \include{contenido/introduccion}
+ \include{contenido/contexto}
+ \include{contenido/adaptacion_nas}
+ \include{contenido/metodologia_experimental}
+ \include{contenido/resultados}
+ \include{contenido/profiling}
+ \include{contenido/versiones}
+ \include{contenido/conclusiones}
+
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ % Apéndices, glosarios y bibliografía  %
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\appendix
+\include{anexos/anexos}
+
+ \include{bibliografia/acronimos}
+ \include{bibliografia/glosario}
+
+ \bibliographystyle{IEEEtranN}
+ \bibliography{bibliografia/bibliografia}
+ \cleardoublepage
+ 
+\end{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

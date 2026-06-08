@@ -1,0 +1,30 @@
+\begin{table}[htbp]
+\centering
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrrrr}
+\hline
+Bench. & Python & Hilos & NAS (s) & Speedup & CPUs usadas & IPC & Fallos cache (\%) \\
+\hline
+EP & 3.14t & 1 & 2.87 & 1.00$\times$ & 1.90 & 0.86 & 13.9 \\
+EP & 3.14t & 8 & 0.36 & 7.97$\times$ & 3.09 & 1.02 & 22.0 \\
+EP & 3.14t & 16 & 0.37 & 7.76$\times$ & 5.08 & 0.86 & 14.1 \\
+EP & 3.14t & 32 & 0.29 & 9.90$\times$ & 4.68 & 0.90 & 33.3 \\
+EP & 3.15t & 1 & 2.87 & 1.00$\times$ & 0.97 & 1.09 & 14.8 \\
+EP & 3.15t & 8 & 0.37 & 7.76$\times$ & 2.47 & 1.02 & 44.8 \\
+EP & 3.15t & 16 & 0.48 & 5.98$\times$ & 2.55 & 1.09 & 19.3 \\
+EP & 3.15t & 32 & 0.48 & 5.98$\times$ & 2.55 & 1.09 & 18.9 \\
+FT & 3.14t & 1 & 5.00 & 1.00$\times$ & 1.30 & 2.11 & 13.7 \\
+FT & 3.14t & 8 & 0.67 & 7.46$\times$ & 5.45 & 1.86 & 8.5 \\
+FT & 3.14t & 16 & 0.42 & 11.90$\times$ & 6.81 & 1.77 & 8.1 \\
+FT & 3.14t & 32 & 0.64 & 7.81$\times$ & 7.25 & 1.55 & 40.5 \\
+FT & 3.15t & 1 & 4.90 & 1.00$\times$ & 0.97 & 2.71 & 14.0 \\
+FT & 3.15t & 8 & 0.70 & 7.00$\times$ & 3.57 & 2.49 & 30.0 \\
+FT & 3.15t & 16 & 0.41 & 11.95$\times$ & 4.38 & 2.38 & 8.2 \\
+FT & 3.15t & 32 & 0.64 & 7.66$\times$ & 5.72 & 1.88 & 44.2 \\
+\hline
+\end{tabular}
+}
+\caption{Perfil con \texttt{perf stat} de EP y FT en clase~W, modo~3.}
+\label{tab:profiling-ep-ft-perf}
+\end{table}

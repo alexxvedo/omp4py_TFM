@@ -1,0 +1,29 @@
+\begin{table}[htbp]
+\centering
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrr}
+\hline
+Clase & Bench. & T1 (s) & T32 (s) & Speedup32 & Mop/s32 \\
+\hline
+S & CG & 0.13 & 0.86 & 0.15$\times$ & 77.9 \\
+S & EP & 1.44 & 0.16 & 9.00$\times$ & 213 \\
+S & FT & 2.41 & 0.25 & 9.64$\times$ & 702 \\
+S & IS & 0.00 & 0.02 & --- & 27.7 \\
+S & MG & 0.01 & 0.22 & 0.05$\times$ & 33.9 \\
+W & CG & 0.78 & 5.51 & 0.14$\times$ & 76.3 \\
+W & EP & 2.87 & 0.29 & 9.90$\times$ & 229 \\
+W & FT & 5.04 & 0.63 & 8.00$\times$ & 592 \\
+W & IS & 0.03 & 0.07 & 0.43$\times$ & 158 \\
+W & MG & 0.45 & 0.79 & 0.57$\times$ & 618 \\
+A & CG & 2.76 & 21.17 & 0.13$\times$ & 70.7 \\
+A & EP & 22.99 & 2.19 & 10.50$\times$ & 245 \\
+A & FT & 58.63 & 4.18 & 14.03$\times$ & 1706 \\
+A & IS & 0.36 & 0.44 & 0.82$\times$ & 191 \\
+A & MG & 3.57 & 4.56 & 0.78$\times$ & 854 \\
+\hline
+\end{tabular}
+}
+\caption{Síntesis de tiempos, speedup y Mop/s a 32 hilos en modo~3, Python~3.15t.}
+\label{tab:resultados-mode3-t32-sintesis}
+\end{table}

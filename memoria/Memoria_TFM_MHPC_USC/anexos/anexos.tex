@@ -1,0 +1,151 @@
+\newpage
+\chapter*{Apéndices}
+\addcontentsline{toc}{chapter}{Apéndices}
+\thispagestyle{empty}
+\newpage
+
+\chapter{Interfaz de ejecución de los benchmarks}
+\label{anexo:interfaz}
+
+Todos los benchmarks adaptados comparten la misma interfaz de línea de comandos,
+lo que permite reutilizar la infraestructura de campaña sin cambios por
+benchmark. La invocación general es:
+
+\begin{verbatim}
+python <BENCHMARK>_Python.py -c <CLASE> -t <HILOS> -m <MODO>
+\end{verbatim}
+
+donde \texttt{-c} selecciona la clase NAS (\texttt{S}, \texttt{W}, \texttt{A}),
+\texttt{-t} fija el número de hilos del equipo OpenMP y \texttt{-m} selecciona el
+modo de ejecución de OMP4Py (0~puro, 1~híbrido, 2~compilado, 3~compilado
+tipado). La salida estándar incluye el tiempo NAS interno, los Mop/s y el estado
+de verificación (\texttt{SUCCESSFUL} o \texttt{UNSUCCESSFUL}), que son los
+valores que recopila la infraestructura de medición descrita en el
+Capítulo~\ref{chap:metodologia}.
+
+
+\chapter{Ejemplo de kernel adaptado: EP en modo tipado}
+\label{anexo:kernel-ep}
+
+El siguiente extracto corresponde al kernel principal de EP en su versión
+tipada (modo~3), \texttt{ep\_compute\_types}. Ilustra las decisiones de
+implementación descritas en la Sección~\ref{sec:decisiones-implementacion}: la
+región \texttt{parallel} con reducción sobre \texttt{sx} y \texttt{sy}, la lista
+explícita de variables privadas, las memoryviews tipadas
+(\texttt{cython.double[:]}) y la sección crítica final que acumula el histograma.
+Se ha abreviado el cuerpo aritmético del bucle interno por claridad.
+
+\begin{verbatim}
+@omp(compile=use_compiled_types())
+def ep_compute_types(nn: int, nk: int, nk_plus: int, nq: int, an: float):
+    sx: float = 0.0
+    sy: float = 0.0
+    ...
+    q_values = numpy.repeat(0.0, nq)
+    q: cython.double[:] = q_values
+
+    with omp("parallel reduction(+:sx,sy) "
+             "private(i,k,seed_iter,ik,kk,l,a1,x1_seed,t2_int,t4_int,"
+             "t1,t3,a2,x2_seed,z,t1_local,t2_local,x1,x2,"
+             "t1_value,t2_value,t3_value,t4_value)"):
+        qq_values = numpy.repeat(0.0, nq)
+        x_values = numpy.empty(nk_plus, dtype=numpy.float64)
+        qq: cython.double[:] = qq_values
+        x_local: cython.double[:] = x_values
+
+        with omp("for schedule(static)"):
+            for k in range(1, nn + 1):
+                ...                       # generacion de muestras (Box-Muller)
+                for i in range(nk):
+                    x1 = 2.0 * x_local[2 * i] - 1.0
+                    x2 = 2.0 * x_local[2 * i + 1] - 1.0
+                    t1_value = x1 * x1 + x2 * x2
+                    if t1_value <= 1.0:
+                        t2_value = math.sqrt(-2.0 * math.log(t1_value)
+                                             / t1_value)
+                        t3_value = x1 * t2_value
+                        t4_value = x2 * t2_value
+                        l = int(max(abs(t3_value), abs(t4_value)))
+                        qq[l] = qq[l] + 1.0
+                        sx = sx + t3_value
+                        sy = sy + t4_value
+
+        with omp("critical"):
+            for i in range(nq):
+                q[i] = q[i] + qq[i]
+\end{verbatim}
+
+La declaración explícita de variables privadas en la cláusula
+\texttt{private(...)} es la corrección descrita en la
+Sección~\ref{sec:decisiones-implementacion}: sin ella, varias temporales se
+compartían entre hilos y la verificación NAS fallaba.
+
+
+\chapter{Infraestructura de ejecución en Finisterrae~III}
+\label{anexo:infraestructura}
+
+La campaña se automatiza con los scripts del directorio \texttt{scripts/ft3}. El
+script \texttt{array\_run.sbatch} es la plantilla de Slurm que ejecuta cada
+elemento del array de trabajos; cada elemento procesa varias filas de la matriz
+de combinaciones de forma secuencial mediante \texttt{run\_one.py}.
+
+\begin{verbatim}
+#!/usr/bin/env bash
+#SBATCH --job-name=omp4py-npb
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --mem-per-cpu=4G
+#SBATCH --time=06:00:00
+
+source "$FT3_ROOT/scripts/ft3/env.sh"
+ft3_export_python_runtime "${RUNNER_PYTHON_TAG:-3.15t}"
+RUNNER_PYTHON="$(ft3_venv_python "${RUNNER_PYTHON_TAG:-3.15t}")"
+
+start_index="$(( (SLURM_ARRAY_TASK_ID - 1) * rows_per_task + 1 ))"
+end_index="$(( SLURM_ARRAY_TASK_ID * rows_per_task ))"
+for index in $(seq "$start_index" "$end_index"); do
+    "$RUNNER_PYTHON" "$FT3_ROOT/scripts/ft3/run_one.py" \
+        --manifest "$MANIFEST" --index "$index" \
+        --campaign-dir "$CAMPAIGN_DIR"
+done
+\end{verbatim}
+
+La selección del intérprete \emph{free-threaded} y la desactivación explícita
+del GIL se realizan en \texttt{env.sh} mediante la variable
+\texttt{PYTHON\_GIL=0} y la ruta de bibliotecas correspondiente a cada versión:
+
+\begin{verbatim}
+ft3_export_python_runtime() {
+    local prefix; prefix="$(ft3_python_prefix "$1")"
+    export LD_LIBRARY_PATH="$prefix/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    export PYTHON_GIL=0
+}
+\end{verbatim}
+
+
+\chapter{Estructura de los resultados de campaña}
+\label{anexo:resultados-estructura}
+
+Cada campaña genera un directorio bajo \texttt{results/} con los siguientes
+artefactos, que constituyen la base de las tablas y figuras de los
+Capítulos~\ref{chap:resultados},~\ref{chap:profiling}
+y~\ref{chap:versiones}:
+
+\begin{itemize}
+  \item \texttt{manifest.csv}: matriz completa de combinaciones de la campaña.
+  \item \texttt{raw/}: registros crudos con nombre semántico (versión de Python,
+        benchmark, clase, modo, número de hilos y repetición).
+  \item \texttt{records/}: un fichero JSON por ejecución, con tiempo NAS interno,
+        tiempo externo de proceso, Mop/s, código de retorno y verificación.
+  \item \texttt{summary.csv}: tabla plana con todas las ejecuciones.
+  \item \texttt{summary\_best.csv}: agregados de mejor y media por combinación.
+  \item \texttt{env.txt}: metadatos de la campaña (versiones de Python, NumPy,
+        Cython y variables de entorno).
+\end{itemize}
+
+El registro de la versión exacta de cada componente y de las variables de
+entorno responde a la implicación metodológica del
+Capítulo~\ref{chap:versiones}: en evaluaciones de Python \emph{free-threaded} la
+configuración del runtime y la afinidad de hilos pueden alterar la conclusión
+experimental, por lo que deben quedar documentadas junto con los resultados.

@@ -1,0 +1,123 @@
+\chapter{Introducción}
+\label{chap:introduccion}
+
+\lettrine{P}{ython} ocupa una posición consolidada en la computación científica.
+Su ecosistema de bibliotecas, la legibilidad del código y la rapidez de
+prototipado lo han convertido en el lenguaje de referencia para análisis
+numérico y aprendizaje automático~\cite{HighPerfPython2020}. Sin embargo, la
+ejecución paralela con múltiples hilos ha estado históricamente limitada por el
+\emph{Global Interpreter Lock} (GIL), que impide la ejecución simultánea de
+bytecode Python en un mismo proceso. Las versiones \emph{free-threaded} de Python, disponibles
+experimentalmente a partir de Python~3.13~\cite{PEP703}, eliminan esa
+restricción y abren la posibilidad de explotar paralelismo de memoria compartida
+directamente en el intérprete.
+
+OMP4Py es una biblioteca que adapta el modelo de programación OpenMP al entorno
+Python~\cite{PineiroOMP4PyFGCS2026,PineiroOMP4PyCGO2026}. Permite expresar
+paralelismo mediante directivas integradas en el código, con una sintaxis próxima
+a la de OpenMP en C o C++~\cite{OpenMPSpec}. La biblioteca ofrece cuatro modos
+de ejecución (desde un intérprete puro hasta kernels Cython con tipos
+nativos), lo que permite comparar el coste de cada capa de abstracción sobre
+el mismo código fuente.
+
+Este TFM evalúa OMP4Py sobre NAS Parallel Benchmarks adaptados a Python. Los
+NAS son adecuados para este propósito porque definen problemas conocidos, clases
+de tamaño estandarizadas y rutinas de verificación propias~\cite{NPB1994}. El
+trabajo no consiste en validar implementaciones triviales. Se trata de portar
+benchmarks completos, conservar su semántica y medir si OMP4Py puede explotarlos
+de forma paralela y eficiente en un entorno de supercomputación real.
+
+
+\section{Motivación}
+\label{sec:motivacion}
+
+La pregunta central del TFM es si un programador puede expresar paralelismo de
+estilo OpenMP en Python con OMP4Py, obtener resultados correctos y conseguir
+aceleración real sobre más de un hilo.
+
+La motivación surge de una tensión habitual en computación científica de altas
+prestaciones~\cite{IntrotoHPC2010}. Python es cómodo para desarrollar, pero los
+kernels numéricos intensivos suelen requerir código nativo o bibliotecas como
+NumPy~\cite{NumPy2020}, que delegan el trabajo paralelo a capas C sin exponer el
+modelo de programación al desarrollador. OMP4Py propone una vía
+intermedia: mantiene una interfaz Python y, cuando el rendimiento lo exige,
+compila los kernels mediante Cython. Este TFM estudia esa vía con benchmarks
+estandarizados, separando el efecto del modo de ejecución del efecto del
+paralelismo entre hilos.
+
+Los resultados obtenidos durante la evaluación revelan que ambos factores no
+tienen el mismo peso. En la campaña principal con Python~3.15t, el tipado
+Cython (modo~3) reduce los tiempos entre uno y varios órdenes de magnitud
+frente al modo compilado sin tipos (modo~2), incluso con un único hilo. La
+escalabilidad entre hilos depende mucho del benchmark: EP y FT alcanzan
+speedups superiores a $10\times$ en clase~A, mientras que CG, IS y MG quedan
+limitados por sincronización, granularidad o patrones de memoria. La comparación
+entre versiones muestra que Python~3.13t, 3.14t y 3.15t se comportan de forma
+similar cuando el entorno de afinidad está correctamente configurado.
+
+
+\section{Objetivos}
+\label{sec:objetivos}
+
+El objetivo general es desarrollar y evaluar aplicaciones paralelas con OMP4Py
+usando NAS Parallel Benchmarks como conjunto de referencia en el cluster
+Finisterrae~III.
+
+Los objetivos específicos son los siguientes.
+
+\begin{itemize}
+  \item Estudiar el modelo de programación de OMP4Py y sus cuatro modos de
+        ejecución.
+  \item Adaptar cinco NAS Parallel Benchmarks a OMP4Py conservando la
+        verificación oficial de cada uno como criterio de aceptación.
+  \item Construir una infraestructura reproducible para ejecutar los benchmarks
+        en Finisterrae~III mediante Slurm.
+  \item Medir rendimiento y escalabilidad con los cuatro modos de ejecución,
+        distintas clases de problema y entre 1 y 32 hilos.
+  \item Comparar el impacto del tipado Cython frente al aumento del número de
+        hilos en cada benchmark.
+  \item Comparar el comportamiento de Python~3.13t, Python~3.14t y
+        Python~3.15t en modo \emph{free-threaded}.
+  \item Identificar mediante profiling los cuellos de botella en los casos donde
+        la escalabilidad sea reducida.
+\end{itemize}
+
+
+\section{Alcance}
+\label{sec:alcance}
+
+El trabajo cubre los benchmarks EP, CG, IS, MG y FT. Son los cinco sobre los que
+se ha introducido paralelismo explícito con directivas OMP4Py y cuya verificación
+es correcta en todos los modos. Los benchmarks BT, SP y LU quedan fuera del
+alcance principal: sus estructuras de datos y patrones de sincronización
+presentan restricciones que exceden el tiempo disponible para este TFM, y sus
+adaptaciones actuales no incorporan paralelismo.
+
+Las modificaciones a la propia biblioteca OMP4Py también quedan fuera del
+alcance. La biblioteca se toma como entorno dado. El trabajo se centra en las
+aplicaciones y en su evaluación experimental.
+
+La campaña experimental principal cubre las clases de problema S, W y~A. La
+clase~S permite comparar los cuatro modos de ejecución y validar la corrección
+en todos los benchmarks. La clase~W se centra en los modos compilados y la
+clase~A en el modo~3, que es el único modo práctico para cargas grandes. Además,
+se ejecuta una campaña de comparación entre Python~3.13t, 3.14t y 3.15t sobre
+las clases~S y~W. Todas las ejecuciones finales obtuvieron verificación
+correcta.
+
+
+\section{Estructura de la memoria}
+\label{sec:estructura}
+
+El Capítulo~\ref{chap:contexto} describe el contexto tecnológico, incluyendo Python
+\emph{free-threaded}, OMP4Py y los NAS Parallel Benchmarks. El
+Capítulo~\ref{chap:adaptacion-nas} detalla el proceso de adaptación de los cinco
+benchmarks y las decisiones de implementación más relevantes. El
+Capítulo~\ref{chap:metodologia} define la metodología experimental y la
+infraestructura de medición. El Capítulo~\ref{chap:resultados} presenta y analiza
+los resultados de la campaña principal con Python~3.15t. El
+Capítulo~\ref{chap:profiling} diagnostica con \texttt{perf stat} la ocupación
+real de CPU, el IPC y los límites de escalabilidad. El
+Capítulo~\ref{chap:versiones} compara Python~3.13t, 3.14t y 3.15t. El
+Capítulo~\ref{chap:conclusiones} resume los hallazgos y plantea el trabajo
+futuro.

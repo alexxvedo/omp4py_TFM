@@ -1,0 +1,245 @@
+\chapter{Adaptación de los NAS Parallel Benchmarks a OMP4Py}
+\label{chap:adaptacion-nas}
+
+\section{Benchmarks adaptados}
+\label{sec:benchmarks-adaptados}
+
+Se adaptaron cinco NAS Parallel Benchmarks al modelo de programación OMP4Py:
+EP, CG, IS, MG y FT. En todos los casos se conservaron la clase del problema,
+el número de iteraciones y la verificación oficial del benchmark como criterio
+único de aceptación. Los tres benchmarks restantes del conjunto NPB (BT, SP y
+LU) quedan diferidos. Sus estructuras de datos y patrones de sincronización
+presentan restricciones que exceden el alcance de este TFM y sus adaptaciones
+actuales no incorporan paralelismo con directivas OMP4Py.
+
+Todos los benchmarks siguen una interfaz común:
+
+\begin{verbatim}
+python <BENCHMARK>_Python.py -c <CLASE> -t <HILOS> -m <MODO>
+\end{verbatim}
+
+donde \texttt{-c} selecciona la clase NAS (\texttt{S}, \texttt{W}, \texttt{A}),
+\texttt{-t} fija el número de hilos y \texttt{-m} selecciona el modo de
+ejecución.
+
+La Tabla~\ref{tab:estado-benchmarks} resume el estado funcional de los ocho
+benchmarks disponibles en el repositorio.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l|l|l}
+Benchmark & Estado & Observación principal \\
+\hline
+EP & Completo & Paralelismo y tipado completos; escala en modo~3 \\
+CG & Completo & Reducción paralela; sincronización dominante \\
+IS & Completo & Semántica de cubos revisada para OMP4Py \\
+MG & Completo & Múltiples kernels en malla; granularidad desigual \\
+FT & Completo & FFT compleja; escala en modo~3 \\
+BT & Diferido & Sin directivas OMP4Py; solo compilación Cython \\
+SP & Diferido & Sin directivas OMP4Py; solo compilación Cython \\
+LU & Diferido & Sin directivas OMP4Py; solo compilación Cython \\
+\end{tabular}
+\caption{Estado de los benchmarks NAS en el repositorio.}
+\label{tab:estado-benchmarks}
+\end{table}
+
+
+\section{Metodología de adaptación}
+\label{sec:metodologia-portado}
+
+El port se realizó de forma incremental. Se partió de las versiones Python
+seriales de referencia y, cuando estaban disponibles, se consultaron también las
+versiones C/OpenMP originales. El proceso se estructuró en diez pasos:
+
+\begin{enumerate}
+  \item Partir de la versión Python serial NAS.
+  \item Comparar con la versión C/OpenMP cuando existe.
+  \item Conservar clase, tamaño, iteraciones, salida y verificación NAS.
+  \item Eliminar dependencias de Numba~\cite{Numba2015} y adaptar imports.
+  \item Añadir la interfaz común \texttt{-c}, \texttt{-t}, \texttt{-m}.
+  \item Conseguir verificación correcta en modo~0 antes de cualquier otra
+        modificación.
+  \item Separar los kernels numéricos del código de orquestación (temporizadores,
+        E/S, verificación).
+  \item Compilar solo los kernels; pasar tamaños y constantes como argumentos.
+  \item Cambiar el indexado NumPy encadenado (\texttt{u[k][j][i]}) por indexado
+        directo (\texttt{u[k, j, i]}).
+  \item Añadir anotaciones de tipo Cython y memoryviews en el modo~3.
+\end{enumerate}
+
+Una optimización solo se acepta si la verificación sigue siendo
+\texttt{SUCCESSFUL}. Este criterio condicionó todo el proceso. Las versiones más
+rápidas que fallaban la verificación se descartaban.
+
+
+\section{Decisiones de implementación}
+\label{sec:decisiones-implementacion}
+
+\paragraph{Separación de kernels y orquestación.}
+Las funciones de alto nivel de los NAS mezclan inicialización, temporizadores,
+E/S, selección de clase, verificación y kernels numéricos. Compilar esas
+funciones completas con OMP4Py resulta frágil porque la transformación AST no
+puede aplicarse de forma segura a código que combina efectos secundarios con
+regiones paralelas. Por ello, la orquestación se mantuvo en Python puro y solo
+se compilaron las funciones con carga numérica significativa.
+
+\paragraph{Compilación dinámica tras inicialización.}
+En varios benchmarks, las constantes y tamaños de array dependen de la clase
+seleccionada y se calculan durante la ejecución. Si un kernel compilado captura
+esos valores antes de que la inicialización se complete, puede usar dimensiones
+incorrectas. Para evitarlo, la decoración OMP4Py se aplica después de completar
+la inicialización de constantes, en una función \texttt{compile\_kernels()} que
+se invoca explícitamente una vez conocida la clase.
+
+\paragraph{Indexado directo en NumPy.}
+Las expresiones como \texttt{u[k][j][i][m]} generan objetos intermedios en
+NumPy y dificultan la generación de código eficiente por parte de Cython. La
+sustitución por \texttt{u[k, j, i, m]} es semánticamente equivalente y permite
+a Cython generar accesos directos a los buffers C cuando se combina con
+memoryviews.
+
+\paragraph{Variables privadas explícitas.}
+En EP apareció un fallo de verificación en modo compilado tipado: varias
+variables temporales se compartían entre hilos y producían resultados
+incorrectos. La corrección consistió en declararlas como privadas dentro de la
+región paralela. Este caso ilustra que una traducción estructuralmente parecida
+al código C/OpenMP no garantiza una semántica equivalente en Python. La
+visibilidad de las variables locales depende del ámbito léxico del intérprete,
+no de las reglas de ámbito de OpenMP.
+
+
+\section{Particularidades por benchmark}
+\label{sec:particularidades-benchmarks}
+
+\paragraph{EP.}
+EP genera pares de variables aleatorias con distribución normal mediante el
+método de Box-Muller. El kernel paralelo central recorre $2^{nk}$ bloques de
+dos muestras cada uno. Dentro de cada bloque calcula una semilla local, evalúa
+raíces cuadradas y aritmética de punto flotante en escalares, y acumula dos
+contadores globales (\texttt{sx}, \texttt{sy}) con una reducción.
+
+La implementación tiene dos versiones compiladas: \texttt{ep\_compute} (modo~2)
+y \texttt{ep\_compute\_types} (modo~3). Ambas usan la misma directiva
+\texttt{parallel reduction(+:sx,sy)} con planificación estática, pero en
+\texttt{ep\_compute\_types} todas las variables del bucle interno están
+declaradas con tipos C de Cython (\texttt{cython.int}, \texttt{cython.double})
+y se declaran explícitamente privadas para evitar condiciones de carrera. El
+módulo principal selecciona la versión tipada en modo~3 mediante
+\texttt{use\_compiled\_types()}. Sin ese tipado, cada operación aritmética pasa
+por el mecanismo de despacho de objetos Python, lo que multiplica el tiempo
+por un factor cercano a~30 en las clases S y W.
+
+La sección crítica al final de la región paralela actualiza el histograma de
+pares. Esta operación es secuencial y representa un porcentaje despreciable del
+tiempo total en modo~3.
+
+\paragraph{CG.}
+CG resuelve un sistema lineal disperso con el método del gradiente conjugado y
+calcula el autovalor más pequeño de la matriz. El bucle de gradiente conjugado
+tiene 25 iteraciones. Cada una realiza un producto matriz-vector disperso
+seguido de varias operaciones de reducción.
+
+La implementación distingue entre modo no compilado y modo compilado. En los
+modos~0 y~1, la función \texttt{conj\_grad} usa directivas
+\texttt{parallel~for} independientes para cada bucle. En los modos~2 y~3, la
+función \texttt{conj\_grad\_compiled} envuelve todo el bucle de iteraciones en
+una única directiva \texttt{parallel}, de modo que el grupo de hilos se crea
+una sola vez por llamada y los bucles internos se distribuyen con
+\texttt{for}. Esta distinción reduce el overhead de creación y destrucción de
+hilos, que es especialmente relevante en clase~S donde los tiempos de kernel
+son del orden de décimas de segundo.
+
+Los kernels auxiliares (\texttt{normalize\_z\_compiled},
+\texttt{shift\_column\_indices\_compiled}, \texttt{fill\_vector\_compiled})
+están anotados con memoryviews de Cython (\texttt{cython.long[:]},
+\texttt{cython.double[:]}) para el acceso a arrays. La versión tipada evita que
+las operaciones escalares de los bucles internos pasen por objetos Python. Esta
+diferencia es decisiva en rendimiento absoluto: en clase~W, el modo~3 reduce el
+tiempo con un hilo de 105.6~s a 0.78~s frente al modo~2.
+
+La limitación principal de CG es el número de barreras de sincronización.
+Dentro de cada iteración del gradiente conjugado hay cuatro reducciones
+escalares. En clases con tiempos de kernel cortos, el overhead de
+sincronización supera el trabajo paralelo y provoca degradación activa con
+más hilos.
+
+\paragraph{IS.}
+IS ordena enteros de 32 bits mediante un bucket sort en dos fases. La primera
+construye el histograma de claves y la segunda realiza la ordenación local en
+cada cubo. Para inicializar el vector de claves, el módulo principal usa
+\texttt{create\_seq} (función Python sin compilar, modos~0/1/2) o
+\texttt{create\_seq\_types} (compilada con Cython y tipos explícitos, modo~3).
+Además, las rutas críticas de ordenación usan variables privadas y tipos Cython
+explícitos en modo~3. Esta
+distinción es visible en clase~W: el modo~3 reduce el tiempo con un hilo de
+5.54~s a 0.03~s frente al modo~2.
+
+La función \texttt{rank} usa una única directiva \texttt{parallel} con un
+bloque de variables privadas explícitas por hilo. Cada hilo gestiona su
+identificador, los offsets de cubos, las posiciones de inserción y los
+contadores locales. Una directiva
+\texttt{barrier} explícita separa la fase de histograma de la fase de
+ordenación. Todos los hilos deben completar el conteo global de claves antes de
+calcular los offsets acumulados, que se calculan en una sección secuencial.
+
+La limitación estructural de IS es ese paso de prefijos acumulados, que es
+necesariamente secuencial y separa las dos fases paralelas. El resultado es
+que, con tiempos de kernel ya cortos en clase~W (0.17~s con un hilo), el
+overhead de la barrera y la gestión de hilos supera el trabajo paralelo a
+medida que aumenta el número de hilos.
+
+\paragraph{MG.}
+MG aplica un ciclo en V del método multigrid para resolver una ecuación de
+Poisson tridimensional discreta. Los kernels del ciclo son \texttt{psinv}
+(suavizado), \texttt{resid} (cálculo de residuo), \texttt{rprj3} (restricción),
+\texttt{interp} (interpolación), \texttt{comm3} (comunicación de fronteras) y
+\texttt{zero3} (inicialización).
+
+Durante el port se eliminaron dependencias de estado global en kernels como
+\texttt{zran3} y \texttt{norm2u3}, y se añadieron rutas tipadas para que Cython
+pudiese compilar los accesos a malla y los acumuladores escalares sin atravesar
+el intérprete. La diferencia entre modo~2 y modo~3 es muy grande en tiempo
+absoluto: en clase~W, el modo~3 baja de 198.2~s a 0.45~s con un hilo.
+
+Los arrays de malla se representan como vectores 1D con indexado manual
+(\texttt{r[(i3*n2 + i2)*n1 + i1]}) porque las memoryviews de Cython en sus
+versiones más accesibles solo funcionan eficientemente con arrays de forma fija
+o con vistas 1D. El bucle más externo de cada kernel (\texttt{for i3 in range})
+se distribuye entre hilos con \texttt{with omp("for")}.
+
+La limitación de MG es la jerarquía de niveles. El ciclo en V desciende hasta
+una malla de $2 \times 2 \times 2$. En los niveles gruesos, el bucle externo
+tiene solo unas pocas iteraciones (1 o 2), lo que hace imposible distribuir
+trabajo entre más de 2 hilos. Esos niveles concentran una fracción del tiempo
+total que limita el speedup global. Por eso MG mejora mucho con el tipado, pero
+no con el aumento de hilos.
+
+\paragraph{FT.}
+FT calcula la transformada de Fourier tridimensional discreta de un array
+complejo mediante FFTs 1D sucesivas sobre cada eje (tres pasadas). La función
+principal abre una única directiva \texttt{parallel} que agrupa todos los
+hilos para el cómputo completo. Dentro de esa región, cada pasada llama a
+\texttt{cffts1/2/3}, que distribuye las filas del array entre hilos con
+\texttt{for} y delega el cómputo a \texttt{cfftz} y \texttt{fftz2}. El patrón
+de región \texttt{parallel} exterior persistente evita crear y destruir el
+grupo de hilos en cada pasada de la FFT.
+
+La implementación tiene una jerarquía completa de funciones tipadas:
+\texttt{fft\_types}, \texttt{cffts1/2/3\_types}, \texttt{cfftz\_types},
+\texttt{fftz2\_types}. En sus versiones no tipadas, las operaciones sobre pares
+complejos usan el tipo \texttt{complex} de Python, que almacena parte real e
+imaginaria como objetos separados y llama a funciones Python para la suma y el
+producto. En las versiones tipadas, esos valores son \texttt{cython.doublecomplex}
+(\texttt{double complex} de C99), y las operaciones aritméticas son instrucciones
+de punto flotante del procesador. La relación entre modo~2 y modo~3 es de
+$18\times$ porque cada iteración del bucle interior de \texttt{fftz2} realiza
+dos multiplicaciones y dos sumas sobre complejos.
+
+FT sí muestra speedup en modo~3. En clase~W, el mejor punto aparece con
+16~hilos; en clase~A, el speedup óptimo es $14.69\times$. La limitación aparece
+al aumentar demasiado el número de hilos. La FFT tridimensional tiene
+dependencias entre pasadas: la pasada sobre el eje $x$ debe completarse antes
+de la pasada sobre el eje $y$, que a su vez precede a la pasada sobre el eje
+$z$. Dentro de cada pasada las filas son independientes y el
+\texttt{parallel~for} funciona, pero el balance de carga y la presión de
+memoria reducen la eficiencia en recuentos altos.

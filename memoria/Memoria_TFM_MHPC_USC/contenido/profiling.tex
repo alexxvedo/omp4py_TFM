@@ -1,0 +1,284 @@
+\chapter{Profiling y diagnóstico}
+\label{chap:profiling}
+
+\section{Objetivo del profiling}
+\label{sec:profiling-objetivo}
+
+Los capítulos anteriores establecen dos hechos: el modo~3 reduce de forma
+marcada los tiempos frente al modo~2, y solo EP y FT obtienen aceleración
+sostenida. El objetivo de este capítulo es
+relacionar esos resultados con métricas de ejecución de bajo nivel: ocupación de
+CPU, IPC y eventos de caché.
+
+El profiling se realizó con \texttt{perf stat}. Esta herramienta mide el
+proceso completo y, por tanto, no aísla únicamente la ventana temporizada por el
+benchmark NAS. Aun así, proporciona una base homogénea para comparar
+Python~3.14t y Python~3.15t en el mismo entorno. Las métricas principales son
+el número medio de CPUs utilizadas, ciclos, instrucciones, IPC y fallos de
+caché.
+
+La campaña de profiling se ejecutó en clase~W y modo~3. Para EP y FT se
+midieron Python~3.14t y Python~3.15t con 1, 8, 16 y 32~hilos. Para CG, IS y MG
+se midieron Python~3.13t, 3.14t y 3.15t con 1, 8 y 32~hilos. Cada medición
+incluyó una ejecución de calentamiento previa para reducir el efecto de la
+compilación Cython sobre los contadores.
+
+Las métricas de \texttt{perf stat} deben interpretarse con cautela en
+benchmarks cortos. IS clase~W tarda centésimas de segundo; en ese caso, el
+arranque del proceso y las bibliotecas importadas pueden pesar tanto como el
+kernel. También se observan valores de CPUs utilizadas superiores a uno en
+algunas ejecuciones con un hilo, precisamente porque \texttt{perf} mide el
+proceso completo y no solo la región paralela.
+
+
+\section{Control de entorno y afinidad}
+\label{sec:profiling-afinidad}
+
+Durante la fase de diagnóstico se detectó que las campañas preliminares fijaban
+afinidad de OpenMP mediante variables como \texttt{OMP\_PROC\_BIND} y
+\texttt{OMP\_PLACES}. Esa configuración producía una serialización aparente en
+algunas ejecuciones de Python~3.15t, especialmente en EP y FT. Las campañas
+finales eliminan esas variables por defecto en los scripts de ejecución y solo
+permiten activarlas explícitamente para experimentos controlados.
+
+Este punto cambia la interpretación del trabajo. La falta de escalabilidad
+observada inicialmente en Python~3.15t no se reproduce en las campañas finales:
+con la afinidad corregida, Python~3.15t escala en EP y FT de forma comparable a
+Python~3.13t y Python~3.14t. Por tanto, el análisis final no atribuye a
+Python~3.15t una incapacidad general para ejecutar estos kernels en paralelo.
+
+También se realizaron pruebas de aislamiento. \texttt{sys.\_is\_gil\_enabled()}
+se mantuvo en \texttt{False} antes y después de importar OMP4Py, Cython y los
+módulos compilados. Además, un microbenchmark con hilos Python puros y un
+kernel OMP4Py mínimo usaron varias CPUs en Python~3.14t y Python~3.15t. Estas
+pruebas apoyan la interpretación de que los problemas restantes pertenecen a
+los kernels concretos o a su interacción con el runtime, no a una reactivación
+implícita del GIL.
+
+
+\section{Cuellos de botella corregidos durante el port}
+\label{sec:profiling-cuello-port}
+
+Antes de la campaña final se corrigieron varios cuellos de botella de código.
+En EP, la función \texttt{vranlc}, encargada de generar números
+pseudoaleatorios, se llamaba desde el kernel compilado como función Python
+externa. Esa llamada impedía que el modo~2 compilase todo el cuerpo relevante.
+La solución fue incluir en \texttt{EP\_Python.py} versiones localmente
+compilables de \texttt{vranlc}, una sin tipos y otra tipada.
+
+En IS se revisó la inicialización de la secuencia de claves para que cada modo
+ejecutase la ruta correcta y no quedase una parte secuencial accidental en modo
+híbrido. En MG se redujo la dependencia de estado global en kernels como
+\texttt{zran3} y \texttt{norm2u3}, pasando los datos necesarios de forma
+explícita para facilitar la compilación efectiva por Cython.
+
+Estas correcciones son relevantes porque separan los límites del port de los
+límites del runtime. Los resultados finales miden versiones donde los kernels
+críticos están dentro del propio fichero del benchmark y son compilables por
+OMP4Py/Cython.
+
+
+\section{EP y FT: kernels que sí escalan}
+\label{sec:profiling-ep-ft}
+
+\input{contenido/tablas/profiling_ep_ft_perf}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/ep_ft_cpus}
+\caption{CPUs utilizadas por EP y FT en clase~W, modo~3, según
+\texttt{perf stat}.}
+\label{fig:profiling-ep-ft-cpus}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/ep_ft_ipc}
+\caption{IPC de EP y FT en clase~W, modo~3, según \texttt{perf stat}.}
+\label{fig:profiling-ep-ft-ipc}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/ep_ft_cache}
+\caption{Porcentaje de fallos de caché de EP y FT en clase~W, modo~3, según
+\texttt{perf stat}.}
+\label{fig:profiling-ep-ft-cache}
+\end{figure}
+
+La Tabla~\ref{tab:profiling-ep-ft-perf} confirma que EP y FT ejecutan trabajo
+en paralelo en Python~3.14t y Python~3.15t. En EP, Python~3.14t baja de 2.87~s a
+0.29~s con 32~hilos, con $9.90\times$ de speedup. Python~3.15t baja de
+2.87~s a 0.37~s con 8~hilos en esta campaña de profiling y mantiene speedups
+por encima de $5\times$ en 16 y 32~hilos. La campaña principal, sin
+\texttt{perf}, obtiene para EP clase~W un mejor tiempo de 0.29~s a 32~hilos,
+por lo que el profiling debe leerse como diagnóstico y no como sustituto de la
+medida principal.
+
+La ocupación de CPU respalda esa lectura. Python~3.14t usa varias CPUs en EP:
+3.09 con 8~hilos, 5.08 con 16 y 4.68 con 32. Python~3.15t también supera una
+CPU en las ejecuciones paralelas, aunque con menor ocupación media en EP
+(2.47--2.55 CPUs). Esto explica que escale, pero con una eficiencia inferior en
+la medición con \texttt{perf}.
+
+FT presenta un patrón aún más claro. Python~3.14t baja de 5.00~s a 0.42~s con
+16~hilos, y Python~3.15t baja de 4.90~s a 0.41~s con el mismo recuento. Los
+speedups son $11.90\times$ y $11.95\times$. Con 32~hilos ambos empeoran
+ligeramente, lo que coincide con la campaña principal y con la campaña de
+versiones: FT escala, pero su óptimo medido está alrededor de 16~hilos.
+
+El IPC ayuda a interpretar el límite de FT. Al aumentar los hilos, el IPC baja
+y los fallos de caché suben especialmente a 32~hilos, un patrón coherente con una
+FFT que combina cómputo con accesos a memoria y sincronización entre fases. El
+límite de FT no es falta de paralelismo efectivo, sino eficiencia decreciente
+al aumentar el equipo de hilos.
+
+
+\section{CG, IS y MG: paralelismo ineficiente o granularidad insuficiente}
+\label{sec:profiling-cg-is-mg}
+
+\input{contenido/tablas/profiling_cg_is_mg_perf}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/cg_is_mg_cpus_314t}
+\caption{CPUs utilizadas por CG, IS y MG con Python~3.14t en clase~W, modo~3.}
+\label{fig:profiling-cg-is-mg-314}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/cg_is_mg_ipc_314t}
+\caption{IPC de CG, IS y MG con Python~3.14t en clase~W, modo~3.}
+\label{fig:profiling-cg-is-mg-ipc-314}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/cg_is_mg_cache_314t}
+\caption{Porcentaje de fallos de caché de CG, IS y MG con Python~3.14t en
+clase~W, modo~3.}
+\label{fig:profiling-cg-is-mg-cache-314}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/cg_is_mg_cpus_315t}
+\caption{CPUs utilizadas por CG, IS y MG con Python~3.15t en clase~W, modo~3.}
+\label{fig:profiling-cg-is-mg-315}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/cg_is_mg_ipc_315t}
+\caption{IPC de CG, IS y MG con Python~3.15t en clase~W, modo~3.}
+\label{fig:profiling-cg-is-mg-ipc-315}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/cg_is_mg_cache_315t}
+\caption{Porcentaje de fallos de caché de CG, IS y MG con Python~3.15t en
+clase~W, modo~3.}
+\label{fig:profiling-cg-is-mg-cache-315}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/cg_is_mg_cpus_313t}
+\caption{CPUs utilizadas por CG, IS y MG con Python~3.13t en clase~W, modo~3.}
+\label{fig:profiling-cg-is-mg-313}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/cg_is_mg_ipc_313t}
+\caption{IPC de CG, IS y MG con Python~3.13t en clase~W, modo~3.}
+\label{fig:profiling-cg-is-mg-ipc-313}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/profiling/cg_is_mg_cache_313t}
+\caption{Porcentaje de fallos de caché de CG, IS y MG con Python~3.13t en
+clase~W, modo~3.}
+\label{fig:profiling-cg-is-mg-cache-313}
+\end{figure}
+
+CG usa varias CPUs con hilos, pero el tiempo empeora. En Python~3.15t, pasa de
+0.78~s a 4.59~s con 8~hilos y a 6.42~s con 32~hilos en la campaña de
+profiling. Al mismo tiempo, \texttt{perf} mide 2.41 CPUs con 8~hilos y 5.98
+con 32. El problema no es que el proceso permanezca estrictamente serial, sino
+que la ejecución paralela no retira trabajo útil con eficiencia. El IPC cae de
+3.07 con un hilo a 1.04 con 8 y 0.39 con 32.
+
+Python~3.13t y Python~3.14t reproducen el mismo patrón en CG
+(Figuras~\ref{fig:profiling-cg-is-mg-313}--\ref{fig:profiling-cg-is-mg-cache-313}).
+Ambas versiones usan varias CPUs al aumentar los hilos, pero el IPC cae y el
+tiempo empeora. La
+estructura del gradiente conjugado lo explica: productos escalares, normas,
+reducciones y barreras frecuentes reducen el trabajo independiente por región
+paralela. Con muchos hilos, la sincronización domina al cómputo.
+
+IS debe interpretarse con más cautela porque los tiempos son muy pequeños. En
+clase~W, el mejor tiempo está alrededor de 0.02--0.03~s con pocos hilos. A
+32~hilos sube a 0.08~s en la campaña de profiling y a 0.06~s en la campaña de
+versiones. La señal de rendimiento es clara aunque los contadores sean ruidosos:
+el trabajo por hilo no compensa la coordinación, los histogramas y las fases de
+acumulación.
+
+MG también usa varias CPUs al aumentar los hilos, pero no obtiene speedup. En
+Python~3.15t, \texttt{perf} mide 3.04 CPUs con 8~hilos y 3.95 con 32, mientras
+el tiempo sube de 0.46~s a 0.60~s y 0.93~s. Python~3.13t y 3.14t siguen la
+misma tendencia. La caída de IPC y el aumento de fallos de caché indican que el
+límite combina presión de memoria, sincronización y granularidad desigual entre
+los niveles de la malla.
+
+
+\section{Interpretación conjunta}
+\label{sec:profiling-interpretacion}
+
+El profiling separa los benchmarks en tres grupos.
+
+El primer grupo contiene EP y FT. En ambos, el modo~3 genera código capaz de
+usar varios núcleos y de reducir el tiempo de forma significativa. EP tiene una
+estructura casi independiente y mantiene el mejor resultado hasta 32~hilos. FT
+escala hasta 16~hilos y después pierde eficiencia por memoria y sincronización.
+
+El segundo grupo contiene CG y MG. Estos benchmarks sí pueden activar varias
+CPUs, pero el IPC cae al aumentar los hilos y el tiempo empeora. El límite
+principal no es la ausencia total de paralelismo, sino que el paralelismo
+disponible está rodeado de reducciones, barreras, accesos irregulares o fases
+con granularidad distinta.
+
+El tercer grupo es IS. Su tiempo absoluto es tan bajo en W que el overhead de
+coordinar muchos hilos domina rápidamente. En clase~A se observa una mejora
+moderada hasta 4~hilos, pero a 32~hilos también pierde eficiencia.
+
+La conclusión del diagnóstico es que los malos speedups no tienen una única
+causa. En las campañas preliminares existía un problema de afinidad que falseaba
+la lectura de Python~3.15t. En las campañas finales, ese problema desaparece en
+EP y FT. Los límites restantes dependen de la estructura de cada benchmark y de
+la eficiencia del runtime en regiones con sincronización o granularidad difícil.
+
+
+\section{Implicaciones para OMP4Py}
+\label{sec:profiling-implicaciones}
+
+Los resultados no invalidan el port. EP y FT son evidencia experimental de que
+las regiones paralelas adaptadas con OMP4Py pueden producir speedups altos
+cuando el kernel es adecuado. A la vez, el modo~3 demuestra que el tipado Cython
+elimina gran parte del coste de objetos Python en los bucles críticos.
+
+La implicación para OMP4Py es que el rendimiento debe evaluarse en dos niveles.
+El primero es la calidad del código Cython generado: si quedan llamadas Python
+en el bucle crítico, el tiempo absoluto se dispara. El segundo es la ejecución
+paralela real: aunque el código esté tipado, las reducciones, barreras,
+distribución de trabajo y presión de memoria pueden hacer que más hilos no
+reduzcan el tiempo.
+
+Como trabajo posterior, la línea más útil es instrumentar OMP4Py por región
+paralela. Sería necesario medir cuántos hilos entran realmente en cada región,
+cuánto tiempo pasan en trabajo útil y cuánto en barreras, reducciones, secciones
+críticas o espera activa. Esa instrumentación permitiría pasar de los síntomas
+observados con \texttt{perf stat} a una explicación causal dentro del runtime.

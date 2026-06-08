@@ -1,0 +1,77 @@
+\chapter{Glosario de términos}
+\label{chap:glosario-terminos}
+
+\begin{description}
+
+  \item[Aceleración (\emph{speedup})] Cociente entre el tiempo de ejecución
+        con un hilo y el tiempo con $t$ hilos dentro del mismo modo y clase.
+        Un valor superior a~1 indica ganancia con el paralelismo; un valor
+        inferior a~1 indica degradación.
+
+  \item[Barrera (\emph{barrier})] Punto de sincronización que obliga a todos
+        los hilos de una región paralela a esperar hasta que el último de
+        ellos llegue al mismo punto antes de continuar.
+
+  \item[Benchmark] Programa de referencia diseñado para medir el rendimiento
+        de un sistema de forma reproducible y comparable entre plataformas.
+
+  \item[Cython] Compilador que acepta un superconjunto del lenguaje Python
+        con anotaciones de tipo opcionales y genera código C que se compila
+        como módulo de extensión para CPython. Las anotaciones de tipo
+        permiten sustituir objetos Python por tipos C nativos en los bucles
+        críticos.
+
+  \item[\emph{Free-threaded Python}] Variante experimental de CPython,
+        disponible desde la versión~3.13 mediante la opción
+        \texttt{--disable-gil}, que elimina el GIL y permite la ejecución
+        simultánea de múltiples hilos sobre el bytecode del intérprete.
+
+  \item[Kernel numérico] Función que concentra la mayor parte del cómputo
+        útil de un benchmark o aplicación paralela, separada del código de
+        orquestación (inicialización, E/S, verificación).
+
+  \item[Memoryview] Objeto Python que expone el buffer interno de un array
+        NumPy sin copiar los datos. En Cython, las memoryviews tipadas
+        permiten acceder directamente a los elementos del array como punteros
+        C, eliminando la indirección de los objetos Python en los bucles
+        internos.
+
+  \item[Modo de ejecución] En OMP4Py, configuración que determina cómo se
+        procesan las directivas OpenMP: modo~0 (puro, sin transformación),
+        modo~1 (híbrido, con transformación AST pero sin compilación),
+        modo~2 (compilado con Cython) y modo~3 (compilado con tipado
+        Cython).
+
+  \item[OMP4Py] Implementación en Python puro del modelo de programación
+        OpenMP. Traduce directivas OpenMP embebidas como cadenas de texto en
+        código Python paralelo mediante transformación del AST, con soporte
+        opcional de compilación Cython.
+
+  \item[Overhead de sincronización] Tiempo invertido en operaciones de
+        coordinación entre hilos (barreras, secciones críticas, reducciones)
+        que no contribuye directamente al cómputo útil.
+
+  \item[Reducción] Operación que combina los valores parciales calculados por
+        cada hilo en un único resultado escalar (suma, máximo, mínimo, etc.)
+        al final de una región paralela.
+
+  \item[Región paralela] Bloque de código delimitado por una directiva
+        \texttt{parallel} de OpenMP que se ejecuta simultáneamente en
+        múltiples hilos.
+
+  \item[Slurm] Sistema de gestión y planificación de trabajos utilizado en
+        los supercomputadores del CESGA para asignar recursos de cómputo y
+        organizar la ejecución de trabajos en cola.
+
+  \item[Tipado Cython] Proceso de anotar variables en código Cython con tipos
+        C explícitos (\texttt{cython.int}, \texttt{cython.double}, etc.) para
+        que el compilador genere operaciones nativas en lugar de pasar por el
+        mecanismo de despacho de objetos Python.
+
+  \item[Verificación NAS] Comprobación numérica integrada en cada NAS
+        Parallel Benchmark que calcula un checksum de los resultados y lo
+        compara con un valor de referencia para la clase ejecutada.
+        Una verificación \texttt{SUCCESSFUL} garantiza la corrección del
+        cómputo.
+
+\end{description}

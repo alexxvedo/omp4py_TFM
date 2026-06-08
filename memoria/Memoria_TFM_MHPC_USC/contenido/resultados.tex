@@ -1,0 +1,366 @@
+\chapter{Resultados}
+\label{chap:resultados}
+
+Este capítulo presenta los resultados de la campaña principal ejecutada en
+Finisterrae~III con Python~3.15.0b1t \emph{free-threaded}. La campaña mide tres
+aspectos: la corrección funcional de los cinco benchmarks portados, el impacto
+de los modos de ejecución de OMP4Py y la escalabilidad al aumentar el número de
+hilos.
+
+La campaña cubre CG, EP, FT, IS y MG. La clase~S se ejecutó en los cuatro modos
+de ejecución para validar todos los caminos de código. La clase~W se ejecutó
+en los modos compilados~2 y~3, porque los modos interpretados no son
+representativos para cargas mayores. La clase~A se ejecutó únicamente en
+modo~3, ya que las clases menores muestran que el tipado Cython es condición
+necesaria para obtener tiempos prácticos. En todos los casos se usaron 1, 2,
+4, 8, 16 y 32~hilos, con tres repeticiones por combinación.
+
+La métrica principal es el tiempo NAS interno reportado por cada benchmark. Para
+cada combinación se toma el mejor tiempo entre las repeticiones válidas. El
+tiempo externo del proceso se conserva en los ficheros de resultados, pero no
+se usa como métrica principal porque incluye arranque del intérprete,
+importación, compilación y escritura de logs.
+
+\input{contenido/tablas/resultados_cobertura_global}
+
+La Tabla~\ref{tab:resultados-cobertura-global} resume la cobertura final. Las
+630 ejecuciones de la campaña principal terminaron con código de retorno cero y
+verificación NAS \texttt{SUCCESSFUL}. Por tanto, el análisis de rendimiento se
+realiza sobre implementaciones funcionalmente correctas.
+
+
+\section{Efecto del modo de ejecución en clase S}
+\label{sec:resultados-modos-s}
+
+La clase~S permite comparar los cuatro modos de OMP4Py con bajo coste. El
+modo~0 conserva la ejecución Python de referencia, el modo~1 aplica la
+transformación OMP4Py sin compilar los kernels, el modo~2 genera código Cython
+sin tipos explícitos y el modo~3 añade tipado Cython y \emph{memoryviews}.
+
+\input{contenido/tablas/resultados_s_t1_modos}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/clase_s_t1_modos}
+\caption{Tiempo NAS con un hilo en clase~S para los cuatro modos de ejecución.
+El eje vertical usa escala logarítmica.}
+\label{fig:resultados-clase-s-modos}
+\end{figure}
+
+La Tabla~\ref{tab:resultados-s-t1-modos} y la
+Figura~\ref{fig:resultados-clase-s-modos} muestran que el modo~3 obtiene el
+menor tiempo con un hilo en todos los benchmarks. Frente al modo~0, los factores son
+$140.23\times$ en CG, $36.09\times$ en EP, $16.08\times$ en FT y
+$381.00\times$ en MG. IS aparece como 0.00~s en modo~3 porque el tiempo NAS se
+imprime con dos decimales y la clase~S queda por debajo de esa resolución.
+
+La diferencia entre modo~2 y modo~3 confirma que el cuello principal no es solo
+la compilación, sino el tipado. En CG, el modo~2 tarda 16.35~s y el modo~3
+0.13~s. En MG, el modo~2 tarda 3.24~s y el modo~3 0.01~s. EP y FT muestran el
+mismo patrón con factores de $29.39\times$ y $15.26\times$. Sin anotaciones de
+tipo, Cython conserva demasiada semántica de objetos Python dentro de los
+bucles críticos; con modo~3, esos bucles pasan a ejecutarse como código nativo
+efectivo.
+
+Los modos~0 y~1 quedan prácticamente superpuestos con un hilo. La transformación
+OMP4Py, por sí sola, no aporta rendimiento cuando no se combina con compilación
+y tipado. En clase~S, su utilidad principal es validar que el código portado
+mantiene caminos funcionales para todos los modos.
+
+
+\section{Escalabilidad en clase S}
+\label{sec:resultados-escalabilidad-s}
+
+La clase~S no es la carga principal para extraer conclusiones de escalabilidad,
+pero permite detectar qué kernels tienen suficiente trabajo incluso en tamaños
+pequeños y qué modos introducen overhead dominante.
+
+\input{contenido/tablas/resultados_s_speedup32_modos}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/mode3_speedup_clase_s}
+\caption{Speedup en clase~S, modo~3, Python~3.15t. La línea discontinua marca
+el umbral de speedup~1.}
+\label{fig:resultados-speedup-s}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/mode3_tiempo_clase_s}
+\caption{Tiempo NAS por número de hilos en clase~S, modo~3, Python~3.15t.
+Cada línea corresponde a un benchmark.}
+\label{fig:resultados-tiempo-s}
+\end{figure}
+
+La Tabla~\ref{tab:resultados-s-speedup32-modos} muestra que EP y FT ya obtienen
+speedups apreciables a 32~hilos en clase~S. En modo~3, EP alcanza
+$9.00\times$ y FT $9.64\times$. En EP, los modos~0,~1 y~2 también muestran
+speedups altos, señal de que el kernel dispone de trabajo paralelo suficiente
+incluso en la clase pequeña.
+
+El comportamiento no es uniforme. CG y MG empeoran en modo~3, con
+$0.15\times$ y $0.05\times$ respectivamente. IS no permite calcular un speedup
+fiable en modo~3 porque el tiempo base aparece redondeado a 0.00~s. La clase~S
+confirma, por tanto, una división que se mantiene en clases mayores: EP y FT
+son los candidatos naturales a escalar; CG, IS y MG están más condicionados por
+sincronización, granularidad o accesos irregulares.
+
+La lectura metodológica es que la clase~S sirve para validar todos los caminos y
+para observar tendencias iniciales, pero las conclusiones prácticas deben
+apoyarse en W y A. En tamaños tan pequeños, pequeñas diferencias de tiempo o de
+redondeo pueden afectar mucho a los cocientes.
+
+
+\section{Clase W: modos compilados}
+\label{sec:resultados-clase-w}
+
+La clase~W aumenta el tamaño del problema y restringe la comparación a los
+modos~2 y~3. Esta decisión evita dedicar recursos a modos interpretados que ya
+son varios órdenes de magnitud más lentos en clase~S.
+
+\input{contenido/tablas/resultados_w_t1_modos}
+
+La Tabla~\ref{tab:resultados-w-t1-modos} mantiene la misma conclusión de clase~S:
+el modo~3 es la única configuración con tiempos prácticos. Con un hilo, el modo~2 tarda 105.6~s en CG frente a 0.78~s en
+modo~3. En MG la diferencia es de 198.2~s frente a 0.45~s. EP y FT mantienen
+factores de mejora cercanos a $29.45\times$ y $15.89\times$, e IS mejora de
+5.54~s a 0.03~s.
+
+\input{contenido/tablas/resultados_w_speedup32_modos}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/mode3_speedup_clase_w}
+\caption{Speedup en clase~W, modo~3, Python~3.15t.}
+\label{fig:resultados-speedup-w}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/mode3_tiempo_clase_w}
+\caption{Tiempo NAS por número de hilos en clase~W, modo~3, Python~3.15t.
+Cada línea corresponde a un benchmark.}
+\label{fig:resultados-tiempo-w}
+\end{figure}
+
+La escalabilidad en clase~W separa los benchmarks en dos grupos. En modo~3, EP
+alcanza $9.90\times$ a 32~hilos y FT $8.00\times$. FT obtiene su mejor punto
+con 16~hilos, donde baja de 5.04~s a 0.42~s, equivalente a $12.00\times$.
+EP alcanza su mejor tiempo con 32~hilos, bajando de 2.87~s a 0.29~s.
+
+CG, IS y MG no escalan en modo~3. CG cae a $0.14\times$, IS a $0.43\times$ y
+MG a $0.57\times$ a 32~hilos. El modo~2 sí muestra speedups altos en varios de
+estos casos, por ejemplo $7.77\times$ en CG y $23.68\times$ en MG, pero sus
+tiempos absolutos siguen siendo muy superiores a los del modo~3 con un hilo.
+Por ello, el speedup aislado no basta para escoger configuración: un modo puede
+escalar mejor en términos relativos y seguir siendo peor en tiempo absoluto.
+
+
+\section{Clase A: evaluación principal de escalabilidad}
+\label{sec:resultados-clase-a}
+
+La clase~A es la carga de mayor tamaño de la campaña principal. Se ejecutó solo
+en modo~3 porque es la única configuración que produce tiempos prácticos en las
+clases anteriores.
+
+\input{contenido/tablas/resultados_a_mode3_tiempos}
+
+\input{contenido/tablas/resultados_a_mode3_speedups}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/mode3_speedup_clase_a}
+\caption{Speedup en clase~A, modo~3, Python~3.15t.}
+\label{fig:resultados-speedup-a}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/mode3_tiempo_clase_a}
+\caption{Tiempo NAS por número de hilos en clase~A, modo~3, Python~3.15t.
+Cada línea corresponde a un benchmark.}
+\label{fig:resultados-tiempo-a}
+\end{figure}
+
+Los resultados de clase~A son los más representativos para valorar el port en
+cargas grandes. EP baja de 22.99~s con un hilo a 2.19~s con 32~hilos, lo que
+supone $10.50\times$. FT baja de 58.63~s a 4.18~s con 32~hilos
+($14.03\times$), y su mejor punto está en 16~hilos con 3.99~s
+($14.69\times$). Estos dos benchmarks muestran que Python~3.15t, OMP4Py y el
+código Cython tipado pueden producir escalabilidad real cuando el kernel ofrece
+trabajo paralelo suficiente y una estructura adecuada.
+
+IS obtiene una mejora moderada con pocos hilos: pasa de 0.36~s a 0.15~s con
+4~hilos, equivalente a $2.40\times$. Sin embargo, la curva empeora después y a
+32~hilos cae a $0.82\times$. El tamaño de clase~A permite amortizar parte del
+coste inicial, pero no sostiene la eficiencia al aumentar la concurrencia.
+
+CG y MG no escalan en clase~A. CG empeora desde 2.76~s con un hilo hasta
+21.17~s con 32~hilos. MG sube de 3.57~s a 4.56~s. En CG, las reducciones y
+sincronizaciones frecuentes del gradiente conjugado limitan el trabajo
+independiente entre barreras. En MG, los niveles de malla tienen granularidad
+desigual y combinan fases de cómputo con accesos intensivos a memoria.
+
+
+\section{Síntesis global del modo 3}
+\label{sec:resultados-sintesis-mode3}
+
+Como el modo~3 es el único que produce tiempos competitivos en todas las
+clases, la síntesis global se centra en esa configuración.
+
+\input{contenido/tablas/resultados_mode3_optimos}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/mode3_speedup32_global}
+\caption{Speedup a 32 hilos en modo~3 para las clases S, W y A.}
+\label{fig:resultados-speedup32-global}
+\end{figure}
+
+La Tabla~\ref{tab:resultados-mode3-optimos} resume el mejor número de hilos en
+cada combinación. EP alcanza su mejor punto en 32~hilos en las tres clases, con
+$9.00\times$ en S, $9.90\times$ en W y $10.50\times$ en A. FT alcanza su mejor
+punto en 16~hilos, con $10.95\times$ en S, $12.00\times$ en W y
+$14.69\times$ en A. IS solo muestra una mejora clara en A hasta 4~hilos. CG y
+MG mantienen el óptimo en un hilo en las tres clases.
+
+\input{contenido/tablas/resultados_mode3_t32_sintesis}
+
+La Tabla~\ref{tab:resultados-mode3-t32-sintesis} añade tiempos y Mop/s a
+32~hilos. Los Mop/s refuerzan la lectura de EP y FT: FT clase~A alcanza
+1706~Mop/s y EP clase~A 245~Mop/s con speedups superiores a $10\times$. En MG,
+en cambio, la cifra de 854~Mop/s a 32~hilos no implica escalabilidad, porque el
+tiempo empeora frente a un hilo. Por ello, el análisis combina siempre tiempo
+absoluto, speedup y Mop/s.
+
+
+\section{Curvas por benchmark}
+\label{sec:resultados-curvas-benchmark}
+
+Las Figuras~\ref{fig:resultados-cg-clases},
+\ref{fig:resultados-ep-clases}, \ref{fig:resultados-ft-clases},
+\ref{fig:resultados-is-clases} y \ref{fig:resultados-mg-clases} reorganizan la
+misma información por benchmark. En estas figuras cada línea corresponde a una
+clase de problema. Esta vista facilita comparar si el aumento de tamaño cambia
+la forma de la curva de escalabilidad.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/benchmark_cg_speedup_clases}
+\caption{CG: speedup por clase en modo~3, Python~3.15t.}
+\label{fig:resultados-cg-clases}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/benchmark_ep_speedup_clases}
+\caption{EP: speedup por clase en modo~3, Python~3.15t.}
+\label{fig:resultados-ep-clases}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/benchmark_ft_speedup_clases}
+\caption{FT: speedup por clase en modo~3, Python~3.15t.}
+\label{fig:resultados-ft-clases}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/benchmark_is_speedup_clases}
+\caption{IS: speedup por clase en modo~3, Python~3.15t.}
+\label{fig:resultados-is-clases}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{imagenes/resultados/benchmark_mg_speedup_clases}
+\caption{MG: speedup por clase en modo~3, Python~3.15t.}
+\label{fig:resultados-mg-clases}
+\end{figure}
+
+La lectura por benchmark confirma la separación observada en las tablas. EP
+mantiene una curva creciente en S, W y A. FT también mejora con el tamaño,
+aunque su máximo aparece antes de 32~hilos. IS solo se beneficia de forma clara
+en clase~A y con pocos hilos. CG y MG no mejoran al aumentar la clase, lo que
+refuerza que su límite no es solo el tamaño del problema, sino la estructura de
+sincronización y acceso a memoria.
+
+
+\section{Interpretación por benchmark}
+\label{sec:resultados-por-benchmark}
+
+\paragraph{CG.}
+CG se beneficia enormemente del tipado, pero no del aumento de hilos en
+modo~3. En clase~W, el modo~3 reduce el tiempo con un hilo de 105.6~s a
+0.78~s frente al modo~2. En clase~A, sin embargo, 32~hilos elevan el tiempo a
+21.17~s. La causa más probable es la frecuencia de reducciones globales,
+productos escalares, normas y barreras propias del gradiente conjugado.
+
+\paragraph{EP.}
+EP es el caso más favorable. Su estructura embarazosamente paralela se traduce
+en speedups altos en las tres clases: $9.00\times$ en S, $9.90\times$ en W y
+$10.50\times$ en A a 32~hilos. El resultado muestra que el port de EP no se
+limita a mejorar por tipado, sino que también explota paralelismo de memoria
+compartida de forma efectiva.
+
+\paragraph{FT.}
+FT también escala, aunque su punto óptimo aparece antes de
+32~hilos. En clase~A, el mejor resultado está en 16~hilos con $14.69\times$,
+mientras que a 32~hilos queda en $14.03\times$. La FFT combina cómputo
+numérico con accesos a memoria y sincronizaciones entre fases; esto explica que
+añadir más hilos siga ayudando hasta cierto punto, pero que el máximo no sea
+necesariamente el mayor recuento evaluado.
+
+\paragraph{IS.}
+IS obtiene tiempos absolutos muy bajos y una mejora moderada en clase~A hasta
+4~hilos, pero no mantiene la escalabilidad a 32~hilos. La ordenación entera
+incluye generación de claves, histogramas, acumulaciones y redistribución, con
+patrones de acceso que no ofrecen la misma granularidad que EP o FT.
+
+\paragraph{MG.}
+MG es uno de los benchmarks con mayor mejora por tipado, pero no escala en
+modo~3. En clase~W, el modo~2 tarda 198.2~s con un hilo y el modo~3 0.45~s.
+Aun así, 32~hilos elevan el tiempo a 0.79~s en W y 4.56~s en A. El patrón es
+coherente con la estructura multigrid: niveles de distinto tamaño, accesos
+intensivos a memoria y sincronizaciones entre restricción, interpolación,
+residuo y norma.
+
+
+\section{Limitaciones de la medida}
+\label{sec:resultados-limitaciones}
+
+La primera limitación es la resolución temporal de la salida NAS. Algunos
+tiempos de clase~S, especialmente en IS y MG, aparecen como 0.00~s o 0.01~s.
+Esos valores son útiles para confirmar tiempos absolutos bajos, pero no para
+calcular ratios finos.
+
+La segunda limitación es el uso del mejor tiempo de tres repeticiones. Esta
+decisión reduce el efecto de ruido externo del cluster, pero no sustituye a una
+campaña estadística más amplia. Para el objetivo del TFM, la señal principal es
+suficientemente clara: el modo~3 mejora drásticamente el tiempo absoluto, EP y
+FT escalan, y CG, IS y MG presentan límites de paralelización.
+
+La tercera limitación es que la clase~A solo se ejecutó en modo~3. No se
+dispone de medidas de modo~2 para A en la campaña final. La restricción fue
+deliberada porque el modo~2 ya había demostrado tiempos demasiado altos en
+clase~W. Por tanto, las conclusiones de clase~A se refieren a la escalabilidad
+del mejor modo disponible.
+
+
+\section{Conclusiones del capítulo}
+\label{sec:resultados-conclusiones}
+
+La campaña principal deja cuatro conclusiones. Primero, las cinco adaptaciones
+son funcionalmente correctas en todos los caminos evaluados. Segundo, el modo~3
+reduce los tiempos entre uno y varios órdenes de magnitud frente al modo~2.
+Tercero, Python~3.15t obtiene escalabilidad significativa en EP y FT, con
+speedups superiores a $10\times$ en clase~A. Cuarto, esa escalabilidad no es
+general: CG, IS y MG siguen limitados por sincronización, granularidad y
+patrones de memoria.
+
+El Capítulo~\ref{chap:profiling} utiliza \texttt{perf stat} para relacionar
+los speedups observados con ocupación real de CPU, IPC y eventos de memoria. El
+Capítulo~\ref{chap:versiones} compara estos resultados con Python~3.13t y
+Python~3.14t.

@@ -1,0 +1,44 @@
+\begin{table}[htbp]
+\centering
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllrrrrr}
+\hline
+Clase & Bench. & Python & Mejor hilo & Mejor tiempo (s) & Speedup ópt. & T32 (s) & Speedup32 \\
+\hline
+S & CG & 3.13t & 1 & 0.12 & 1.00$\times$ & 0.91 & 0.13$\times$ \\
+S & CG & 3.14t & 1 & 0.12 & 1.00$\times$ & 0.92 & 0.13$\times$ \\
+S & CG & 3.15t & 1 & 0.13 & 1.00$\times$ & 0.92 & 0.14$\times$ \\
+S & EP & 3.13t & 32 & 0.15 & 9.53$\times$ & 0.15 & 9.53$\times$ \\
+S & EP & 3.14t & 32 & 0.15 & 9.53$\times$ & 0.15 & 9.53$\times$ \\
+S & EP & 3.15t & 32 & 0.16 & 9.00$\times$ & 0.16 & 9.00$\times$ \\
+S & FT & 3.13t & 16 & 0.20 & 11.50$\times$ & 0.22 & 10.45$\times$ \\
+S & FT & 3.14t & 16 & 0.22 & 11.05$\times$ & 0.23 & 10.57$\times$ \\
+S & FT & 3.15t & 16 & 0.22 & 11.00$\times$ & 0.24 & 10.08$\times$ \\
+S & IS & 3.13t & 1 & 0.00 & --- & 0.02 & 0.00$\times$ \\
+S & IS & 3.14t & 1 & 0.00 & --- & 0.02 & 0.00$\times$ \\
+S & IS & 3.15t & 1 & 0.00 & --- & 0.02 & 0.00$\times$ \\
+S & MG & 3.13t & 1 & 0.01 & 1.00$\times$ & 0.21 & 0.05$\times$ \\
+S & MG & 3.14t & 1 & 0.01 & 1.00$\times$ & 0.21 & 0.05$\times$ \\
+S & MG & 3.15t & 1 & 0.01 & 1.00$\times$ & 0.22 & 0.05$\times$ \\
+W & CG & 3.13t & 1 & 0.76 & 1.00$\times$ & 5.63 & 0.13$\times$ \\
+W & CG & 3.14t & 1 & 0.76 & 1.00$\times$ & 5.63 & 0.13$\times$ \\
+W & CG & 3.15t & 1 & 0.78 & 1.00$\times$ & 5.70 & 0.14$\times$ \\
+W & EP & 3.13t & 32 & 0.29 & 9.86$\times$ & 0.29 & 9.86$\times$ \\
+W & EP & 3.14t & 32 & 0.29 & 9.90$\times$ & 0.29 & 9.90$\times$ \\
+W & EP & 3.15t & 32 & 0.29 & 9.90$\times$ & 0.29 & 9.90$\times$ \\
+W & FT & 3.13t & 16 & 0.38 & 11.95$\times$ & 0.40 & 11.35$\times$ \\
+W & FT & 3.14t & 16 & 0.40 & 12.00$\times$ & 0.42 & 11.43$\times$ \\
+W & FT & 3.15t & 16 & 0.41 & 11.85$\times$ & 0.42 & 11.57$\times$ \\
+W & IS & 3.13t & 2 & 0.02 & 1.50$\times$ & 0.06 & 0.50$\times$ \\
+W & IS & 3.14t & 2 & 0.02 & 1.50$\times$ & 0.06 & 0.50$\times$ \\
+W & IS & 3.15t & 2 & 0.02 & 1.50$\times$ & 0.06 & 0.50$\times$ \\
+W & MG & 3.13t & 1 & 0.44 & 1.00$\times$ & 0.74 & 0.59$\times$ \\
+W & MG & 3.14t & 8 & 0.51 & 1.22$\times$ & 0.71 & 0.87$\times$ \\
+W & MG & 3.15t & 1 & 0.45 & 1.00$\times$ & 0.78 & 0.58$\times$ \\
+\hline
+\end{tabular}
+}
+\caption{Mejor número de hilos en modo~3 para cada versión, clase y benchmark.}
+\label{tab:versiones-mode3-optimos}
+\end{table}

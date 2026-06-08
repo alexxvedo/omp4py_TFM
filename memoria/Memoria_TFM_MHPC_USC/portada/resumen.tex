@@ -1,0 +1,71 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{abstract}
+\thispagestyle{empty}
+Este trabajo adapta cinco NAS Parallel Benchmarks (EP, CG, IS, MG y FT) al
+modelo de programación OMP4Py y los evalúa en el supercomputador Finisterrae~III
+con Python~3.15.0b1t \emph{free-threaded}. El conjunto cubre patrones de cómputo
+distintos: EP es embarazosamente paralelo, CG resuelve un sistema disperso con
+reducciones, IS ordena enteros, MG aplica operadores de malla multinivel y FT
+calcula una transformada de Fourier tridimensional.
+
+La evaluación mide corrección, rendimiento absoluto y escalabilidad en cuatro
+modos de ejecución: puro, híbrido, compilado y compilado tipado. La campaña principal con
+Python~3.15.0b1t contiene 630 ejecuciones y la comparación entre
+Python~3.13.13t, 3.14.4t y 3.15.0b1t añade 1440 ejecuciones. Todas obtuvieron
+verificación \texttt{SUCCESSFUL}.
+
+El resultado más destacado es el impacto del tipado Cython. En la campaña
+principal, el modo compilado tipado reduce los tiempos de clase~W frente al
+modo compilado sin tipos en factores de $135.42\times$ en CG,
+$29.45\times$ en EP, $15.89\times$ en FT, $184.67\times$ en IS y
+$440.51\times$ en MG. El tipado elimina el despacho de objetos Python en los bucles críticos y convierte
+el modo~3 en la única configuración práctica para cargas grandes.
+
+Con Python~3.15t, la escalabilidad entre hilos depende del benchmark. EP y FT
+obtienen aceleraciones claras en clase~A, con $10.50\times$ y $14.03\times$ a
+32 hilos respectivamente. CG, IS y MG no muestran escalabilidad sostenida:
+quedan limitados por reducciones, sincronización, granularidad o patrones de
+memoria. La comparación entre Python~3.13t, 3.14t y 3.15t muestra que, con la
+afinidad de hilos corregida, las tres versiones se comportan de forma similar
+en EP y FT. El resultado indica que la utilidad práctica de OMP4Py depende de
+la interacción entre el tipado Cython, la configuración del runtime y la
+estructura del benchmark.
+
+\vspace*{25pt}
+\begin{otherlanguage}{english}
+\centerline{\bfseries \abstractname}
+This work adapts five NAS Parallel Benchmarks (EP, CG, IS, MG, and FT) to the
+OMP4Py programming model and evaluates them on the Finisterrae~III supercomputer
+using Python~3.15.0b1t free-threaded. The benchmarks cover distinct computational
+patterns. EP is embarrassingly parallel, CG solves a sparse linear system with
+reductions, IS sorts integers, MG applies multilevel grid operators, and FT
+computes a three-dimensional discrete Fourier transform.
+
+The evaluation measures correctness, absolute performance, and scalability
+across four execution modes. The main Python~3.15.0b1t campaign contains
+630 executions, and the comparison across Python~3.13.13t, 3.14.4t, and
+3.15.0b1t adds 1440 executions. All runs passed benchmark verification.
+
+The most significant result is the impact of Cython typing. In the main
+campaign, the typed compiled mode reduces class~W times over the untyped
+compiled mode by factors of $135.42\times$ in CG, $29.45\times$ in EP,
+$15.89\times$ in FT, $184.67\times$ in IS, and $440.51\times$ in MG. Typing
+removes Python object dispatch from critical loops and makes mode~3 the only
+practical configuration for large workloads.
+
+With Python~3.15t, thread scalability depends on the benchmark. EP and FT obtain
+clear speedups in class~A, reaching $10.50\times$ and $14.03\times$ at
+32 threads, respectively. CG, IS, and MG do not show sustained scalability and
+remain limited by reductions, synchronization, granularity, or memory-access
+patterns. The comparison across Python~3.13t, 3.14t, and 3.15t shows that, once
+thread affinity is corrected, the three versions behave similarly in EP and FT.
+Overall, the practical usefulness of OMP4Py depends on the interaction between
+Cython typing, runtime configuration, and benchmark structure.
+\end{otherlanguage}
+
+\vspace*{25pt}
+\input{portada/palabras-clave}
+\end{abstract}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
