@@ -122,3 +122,35 @@ Los NPB incluyen rutinas de verificación internas que comprueban la exactitud
 numérica del resultado. Esa verificación es la única condición de aceptación
 utilizada en este trabajo. Una adaptación que ejecute más rápido pero no
 verifique correctamente se rechaza.
+
+
+\section{Trabajo relacionado}
+\label{sec:trabajo-relacionado}
+
+El paralelismo en Python se ha abordado tradicionalmente por vías que evitan el
+GIL en lugar de eliminarlo. Las extensiones nativas como NumPy~\cite{NumPy2020}
+liberan el GIL durante operaciones vectoriales, y compiladores como
+Numba~\cite{Numba2015} o Cython~\cite{Cython2011} generan código máquina para
+funciones numéricas; en todos los casos el modelo de programación paralela queda
+oculto en la capa nativa y no se expresa al nivel del código Python. El
+paralelismo de procesos —\texttt{multiprocessing}, mpi4py~\cite{mpi4py2011} o
+Dask~\cite{Dask2015}— escala a múltiples nodos, pero con memoria privada y un
+coste de comunicación que no corresponde al modelo de memoria compartida de
+OpenMP~\cite{OpenMPSpec,DagumMenon1998}.
+
+La eliminación del GIL en las versiones \emph{free-threaded}~\cite{PEP703} abre
+una vía distinta: ejecutar hilos Python reales sobre memoria compartida.
+OMP4Py~\cite{PineiroOMP4PyFGCS2026,PineiroOMP4PyCGO2026} se sitúa en esa vía al
+trasladar el modelo de directivas de OpenMP al código Python. Este trabajo se
+diferencia de los estudios que presentan la propia biblioteca en que su objeto
+no es OMP4Py en sí, sino su evaluación sobre aplicaciones completas y a lo largo
+de varias versiones del intérprete.
+
+Como cargas de trabajo se emplean los NAS Parallel Benchmarks~\cite{NPB1994},
+ampliamente utilizados para evaluar sistemas paralelos. Existen portados previos
+de los NPB a Python a partir de las versiones seriales en C++~\cite{NPBPython},
+que sirven de base serial para la adaptación descrita en el
+Capítulo~\ref{chap:adaptacion-nas}. Hasta donde alcanza este trabajo, la
+evaluación de OMP4Py sobre kernels NPB completos, con sus cuatro modos de
+ejecución y la comparación entre versiones \emph{free-threaded} de Python, no se
+había abordado de forma sistemática.
