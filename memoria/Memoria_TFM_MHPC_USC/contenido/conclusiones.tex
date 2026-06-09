@@ -69,7 +69,12 @@ reducen el tiempo. En FT, el IPC y los fallos de caché explican que el óptimo
 aparezca en 16~hilos en lugar de 32. En CG y MG, el proceso también puede usar
 varias CPUs, pero el IPC cae y el tiempo empeora. Por tanto, los malos speedups
 no tienen una única causa: en unos casos el kernel escala, y en otros el
-paralelismo existe pero la sincronización o la memoria dominan.
+paralelismo existe pero la sincronización o la memoria dominan. El sistema de
+muestreo de Python~3.15 cuantifica ese coste desde el nivel del intérprete: la
+fracción de tiempo paralelo en espera de barreras y reducciones crece con el
+número de hilos (hasta el 20--26\% con 8--16~hilos en CG, FT y MG) y revela que
+CG, FT y MG crean y destruyen un equipo de hilos por región paralela, frente al
+equipo persistente de EP.
 
 
 \section{Limitaciones}
@@ -95,11 +100,14 @@ no para calcular speedups precisos.
 \label{sec:trabajo-futuro}
 
 \paragraph{Instrumentación interna de OMP4Py.}
-El profiling con \texttt{perf stat} identifica síntomas, pero no localiza dentro
-del runtime el punto exacto donde se pierde eficiencia. El siguiente paso es
-instrumentar OMP4Py por región paralela para medir cuántos hilos entran,
-cuánto tiempo pasan en trabajo útil y cuánto en barreras, reducciones, secciones
-críticas o espera activa.
+El muestreo con el profiler de Python~3.15 ya proporciona una primera atribución
+del tiempo de sincronización y del número de equipos de hilos por función, pero
+lo hace desde fuera del runtime y sobre el modo interpretado. El siguiente paso
+es integrar esa instrumentación dentro de OMP4Py, por región paralela y para los
+modos compilados, de modo que se mida directamente cuántos hilos entran en cada
+región y cuánto tiempo pasan en trabajo útil frente a barreras, reducciones,
+secciones críticas o espera activa, y reproducirla sobre Finisterrae~III cuando
+el intérprete \emph{free-threaded} permita adjuntar el muestreador.
 
 \paragraph{Campaña de clase A selectiva para versiones.}
 Una campaña adicional centrada en EP y FT, modo~3, clase~A y Python~3.13t/3.14t

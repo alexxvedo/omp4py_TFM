@@ -8,7 +8,10 @@ Los capítulos anteriores establecen dos hechos: el modo~3 reduce de forma
 marcada los tiempos frente al modo~2, y solo EP y FT obtienen aceleración
 sostenida. El objetivo de este capítulo es
 relacionar esos resultados con métricas de ejecución de bajo nivel: ocupación de
-CPU, IPC y eventos de caché.
+CPU, IPC y eventos de caché. El diagnóstico combina dos herramientas:
+\texttt{perf stat}, que mide el uso de recursos a nivel de proceso, y el nuevo
+sistema de muestreo de Python~3.15 (Sección~\ref{sec:profiling-py315}), que
+atribuye el tiempo de sincronización y el balance de carga por función e hilo.
 
 El profiling se realizó con \texttt{perf stat}. Esta herramienta mide el
 proceso completo y, por tanto, no aísla únicamente la ventana temporizada por el
@@ -260,6 +263,83 @@ causa. En las campañas preliminares existía un problema de afinidad que falsea
 la lectura de Python~3.15t. En las campañas finales, ese problema desaparece en
 EP y FT. Los límites restantes dependen de la estructura de cada benchmark y de
 la eficiencia del runtime en regiones con sincronización o granularidad difícil.
+
+
+\section{Profiling con el sistema de muestreo de Python 3.15}
+\label{sec:profiling-py315}
+
+El análisis con \texttt{perf stat} caracteriza el uso de recursos a nivel de
+proceso (CPUs, IPC, caché), pero no descompone el tiempo entre trabajo útil y
+sincronización dentro del runtime. Python~3.15 incorpora un nuevo sistema de
+profiling en la biblioteca estándar, apoyado en la interfaz de depuración externa
+de CPython~\cite{PEP768}. Su componente de muestreo, \texttt{profiling.sampling},
+toma muestras estadísticas de las pilas de llamadas de todos los hilos del
+proceso~\cite{PySamplingProfiler}. En modo \emph{wall}, un hilo bloqueado en una
+barrera o una reducción aparece en la muestra dentro de su función de espera, lo
+que permite atribuir tiempo a la sincronización por nombre de función. Esta
+sección emplea esa herramienta para cubrir el objetivo de identificar costes de
+sincronización y balance de carga, que \texttt{perf stat} solo sugiere de forma
+indirecta.
+
+\paragraph{Entorno y metodología.}
+El profiler de muestreo localiza la sección de runtime del intérprete en
+memoria. En el intérprete \emph{free-threaded} compilado en Finisterrae~III (un
+beta temprano de Python~3.15) esa localización falla sobre la \texttt{libpython}
+compartida, por lo que esta campaña complementaria se ejecutó en un nodo local de
+16~núcleos con el mismo intérprete Python~3.15.0b1t \emph{free-threaded}, el mismo
+código y la misma clase de problema. Las campañas de rendimiento de los capítulos
+anteriores siguen siendo la referencia sobre Finisterrae~III; este estudio añade
+la visión por función e hilo que aquéllas no proporcionan. Se midió en modo~1
+(híbrido, hilos Python reales sobre el runtime interpretado) porque en ese modo
+las primitivas de sincronización de OMP4Py son funciones Python visibles al
+profiler; en modo~3 los kernels y sus barreras se compilan a código nativo y el
+muestreador de pilas Python no las observa. Cada ejecución se muestreó a
+1000--2000~Hz con el muestreo de todos los hilos activado.
+
+\paragraph{Coste de sincronización.}
+La Tabla~\ref{tab:profiling-py315-sync} mide la fracción de las muestras de
+ejecución paralela que caen en primitivas de espera del runtime. El hilo que
+espera aparece en \texttt{threading.Condition.wait}, alcanzada a través de
+\texttt{parallelism.py:parallel\_run} y la barrera interna del runtime. El coste
+de sincronización crece con el número de hilos en los cuatro benchmarks. Con
+4~hilos, EP dedica solo el 1.0\% del tiempo paralelo a esperar, frente al
+9--12\% de CG, FT y MG; con 8~hilos los cuatro se sitúan entre el 16\% y el
+20\%. En FT, donde la FFT impone barreras entre pasadas, la fracción sigue
+subiendo hasta el 25.8\% con 16~hilos. Este patrón es coherente con la ley de
+Amdahl~\cite{Amdahl1967} y con los resultados de rendimiento: el tipado del
+modo~3 acelera el cómputo pero no la sincronización, de modo que la fracción de
+espera observada aquí se convierte en el límite efectivo de escalabilidad cuando
+el kernel es rápido.
+
+\input{contenido/tablas/profiling_py315_sync}
+
+\paragraph{Gestión de hilos y balance de carga.}
+El profiler revela además una diferencia estructural que \texttt{perf stat} no
+expone (Tabla~\ref{tab:profiling-py315-churn}). EP ejecuta toda su región
+paralela sobre un único equipo persistente de hilos: con 8~hilos se observan
+7~hilos trabajadores distintos. CG, FT y MG, en cambio, crean y destruyen un
+equipo por cada región paralela, de modo que a lo largo de una ejecución
+aparecen cientos o miles de hilos efímeros: 246 en FT, 422 en MG y 4859 en CG.
+Esa creación y destrucción repetida de equipos es en sí misma una fuente de
+sobrecoste y explica parte de la degradación de CG y MG al aumentar la
+concurrencia. Sobre el equipo persistente de EP, el reparto de muestras de
+cómputo entre hilos trabajadores es razonablemente equilibrado (cociente entre el
+mínimo y el máximo entre 0.76 y 0.97 según el número de hilos); en los kernels con
+rotación de equipos no existe un equipo estable sobre el que medir balance, y el
+propio recuento de hilos efímeros pasa a ser el indicador relevante.
+
+\input{contenido/tablas/profiling_py315_churn}
+
+\paragraph{Lectura conjunta.}
+Las dos tablas refuerzan, desde el nivel del intérprete, la conclusión del
+diagnóstico con \texttt{perf stat}. EP escala porque combina trabajo
+independiente, un equipo persistente y poca sincronización a baja concurrencia.
+FT escala con meseta porque su sincronización entre pasadas crece de forma
+sostenida. CG y MG no escalan porque acumulan a la vez sincronización creciente y
+rotación de equipos de hilos. El sistema de muestreo de Python~3.15 permite así
+pasar de los síntomas agregados de \texttt{perf stat} a una atribución por
+función e hilo del tiempo de sincronización, que es precisamente la
+instrumentación interna del runtime que se planteaba como trabajo necesario.
 
 
 \section{Implicaciones para OMP4Py}

@@ -79,7 +79,9 @@ Los objetivos específicos son los siguientes.
   \item Comparar el comportamiento de Python~3.13t, Python~3.14t y
         Python~3.15t en modo \emph{free-threaded}.
   \item Identificar mediante profiling los cuellos de botella en los casos donde
-        la escalabilidad sea reducida.
+        la escalabilidad sea reducida, usando \texttt{perf stat} y el nuevo
+        sistema de muestreo de Python~3.15 para medir el coste de sincronización
+        y el balance de carga.
 \end{itemize}
 
 
@@ -117,7 +119,8 @@ Capítulo~\ref{chap:metodologia} define la metodología experimental y la
 infraestructura de medición. El Capítulo~\ref{chap:resultados} presenta y analiza
 los resultados de la campaña principal con Python~3.15t. El
 Capítulo~\ref{chap:profiling} diagnostica con \texttt{perf stat} la ocupación
-real de CPU, el IPC y los límites de escalabilidad. El
+real de CPU, el IPC y los límites de escalabilidad, y con el nuevo sistema de
+muestreo de Python~3.15 los costes de sincronización y el balance de carga. El
 Capítulo~\ref{chap:versiones} compara Python~3.13t, 3.14t y 3.15t. El
 Capítulo~\ref{chap:conclusiones} resume los hallazgos y plantea el trabajo
 futuro.

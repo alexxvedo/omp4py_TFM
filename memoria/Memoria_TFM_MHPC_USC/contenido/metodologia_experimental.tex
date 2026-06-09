@@ -225,7 +225,18 @@ métrica complementaria.
 El análisis se basa en el mejor tiempo de las repeticiones válidas para cada
 combinación. Esta elección aproxima el tiempo de ejecución menos perturbado por
 ruido del sistema y evita que una interrupción puntual del nodo domine la
-comparación. La fórmula de speedup utilizada es
+comparación.
+
+La variabilidad entre repeticiones es baja y respalda esta elección. Sobre las
+207 combinaciones de la campaña principal con al menos dos ejecuciones válidas,
+el coeficiente de variación mediano del tiempo NAS es del 0.65\% y el 95\% de
+las combinaciones queda por debajo del 5\%. Los pocos casos con variación
+superior al 10\% corresponden a kernels de menos de 0.1~s (IS y MG en clases
+pequeñas), donde la resolución de dos decimales de la salida NAS domina el
+cociente. Por tanto, usar el mejor tiempo en lugar de la media no introduce un
+sesgo apreciable en las combinaciones con señal temporal relevante.
+
+La fórmula de speedup utilizada es
 
 \begin{equation}
 \mathrm{speedup}(t) =

@@ -1,0 +1,16 @@
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{lrr}
+\hline
+Benchmark & Hilos trabajadores distintos & Sincr./paralelo \\
+\hline
+EP & 7 (equipo persistente) & 16.3\% \\
+FT & 246 & 17.4\% \\
+MG & 422 & 17.0\% \\
+CG & 4859 & 19.7\% \\
+\hline
+\end{tabular}
+\caption{Gestión de hilos con 8~hilos según el profiler de muestreo de Python~3.15 (clase~S, modo~1). \emph{Hilos trabajadores distintos} es el número de identificadores de hilo con muestras de cómputo observados durante la ejecución: EP emplea un único equipo persistente, mientras que CG, FT y MG crean y destruyen un equipo por región paralela, generando cientos o miles de hilos efímeros.}
+\label{tab:profiling-py315-churn}
+\end{table}

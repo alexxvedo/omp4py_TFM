@@ -231,9 +231,10 @@ complejos usan el tipo \texttt{complex} de Python, que almacena parte real e
 imaginaria como objetos separados y llama a funciones Python para la suma y el
 producto. En las versiones tipadas, esos valores son \texttt{cython.doublecomplex}
 (\texttt{double complex} de C99), y las operaciones aritméticas son instrucciones
-de punto flotante del procesador. La relación entre modo~2 y modo~3 es de
-$18\times$ porque cada iteración del bucle interior de \texttt{fftz2} realiza
-dos multiplicaciones y dos sumas sobre complejos.
+de punto flotante del procesador. La relación entre modo~2 y modo~3 se sitúa
+entre $15\times$ y $19\times$ según la clase y la versión del intérprete, porque
+cada iteración del bucle interior de \texttt{fftz2} realiza dos multiplicaciones
+y dos sumas sobre complejos.
 
 FT sí muestra speedup en modo~3. En clase~W, el mejor punto aparece con
 16~hilos; en clase~A, el speedup óptimo es $14.69\times$. La limitación aparece

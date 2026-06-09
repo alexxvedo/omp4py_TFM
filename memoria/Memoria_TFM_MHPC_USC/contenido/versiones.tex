@@ -43,7 +43,13 @@ de arranque, importación y compilación.
 
 El primer paso es comparar el rendimiento con un hilo. Esta medida elimina el
 efecto de planificación entre hilos y permite observar si una versión introduce
-una ventaja secuencial clara en los kernels compilados.
+una ventaja secuencial clara en los kernels compilados.\footnote{Los tiempos
+absolutos de esta campaña pueden diferir ligeramente de los del
+Capítulo~\ref{chap:resultados} para la misma combinación (por ejemplo, FT
+clase~W con un hilo aparece como 4.86~s aquí y 5.04~s en la campaña principal):
+son campañas independientes y la diferencia refleja la variabilidad entre
+ejecuciones del clúster. Todas las comparaciones de speedup se realizan siempre
+dentro de la misma campaña.}
 
 \input{contenido/tablas/versiones_t1_mode3}
 
