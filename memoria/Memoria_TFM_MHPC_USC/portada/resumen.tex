@@ -24,9 +24,10 @@ el modo~3 en la única configuración práctica para cargas grandes.
 
 Con Python~3.15t, la escalabilidad entre hilos depende del benchmark. EP y FT
 obtienen aceleraciones claras en clase~A, con $10.50\times$ y $14.03\times$ a
-32 hilos respectivamente. CG, IS y MG no muestran escalabilidad sostenida:
-quedan limitados por reducciones, sincronización, granularidad o patrones de
-memoria. La comparación entre Python~3.13t, 3.14t y 3.15t muestra que, con la
+32 hilos respectivamente. CG, IS y MG no muestran escalabilidad sostenida.
+CG queda limitado por sus reducciones frecuentes, IS por la fase secuencial
+de prefijos sobre un kernel muy corto y MG por la granularidad desigual de
+sus niveles de malla. La comparación entre Python~3.13t, 3.14t y 3.15t muestra que, con la
 afinidad de hilos corregida, las tres versiones se comportan de forma similar
 en EP y FT. El resultado indica que la utilidad práctica de OMP4Py depende de
 la interacción entre el tipado Cython, la configuración del runtime y la
@@ -56,9 +57,10 @@ practical configuration for large workloads.
 
 With Python~3.15t, thread scalability depends on the benchmark. EP and FT obtain
 clear speedups in class~A, reaching $10.50\times$ and $14.03\times$ at
-32 threads, respectively. CG, IS, and MG do not show sustained scalability and
-remain limited by reductions, synchronization, granularity, or memory-access
-patterns. The comparison across Python~3.13t, 3.14t, and 3.15t shows that, once
+32 threads, respectively. CG, IS, and MG do not show sustained scalability.
+CG is limited by frequent reductions, IS by a sequential prefix phase over a
+very short kernel, and MG by the uneven granularity of its grid levels.
+The comparison across Python~3.13t, 3.14t, and 3.15t shows that, once
 thread affinity is corrected, the three versions behave similarly in EP and FT.
 Overall, the practical usefulness of OMP4Py depends on the interaction between
 Cython typing, runtime configuration, and benchmark structure.

@@ -15,7 +15,7 @@ intérprete.
 La comparación entre modos de ejecución articula el estudio. Los modos~0 y~1
 sirven como referencia funcional y permiten cuantificar el coste de interpretar
 directivas OMP4Py sin compilación. Los modos~2 y~3 son las configuraciones
-orientadas a rendimiento; la diferencia entre ambos mide el impacto del tipado
+orientadas a rendimiento, y la diferencia entre ambos mide el impacto del tipado
 Cython sobre los kernels numéricos.
 
 
@@ -60,7 +60,34 @@ combinaciones de cada campaña, \texttt{submit\_campaign.sh} crea el directorio
 de resultados y lanza el array de Slurm, \texttt{array\_run.sbatch} ejecuta los
 trabajos, \texttt{run\_one.py} ejecuta una combinación concreta y
 \texttt{parse\_results.py} reconstruye las tablas \texttt{summary.csv},
-\texttt{summary\_best.csv} y los registros JSON.
+\texttt{summary\_best.csv} y los registros JSON. La
+Figura~\ref{fig:metodologia-campana} resume este flujo.
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  caja/.style={draw, rounded corners, align=center, minimum height=12mm,
+               inner sep=2.5mm, font=\small},
+  flecha/.style={->, thick}
+]
+  \node[caja] (matrix) at (0,0) {\texttt{make\_matrix.py}\\matriz de\\combinaciones};
+  \node[caja] (submit) at (4.4,0) {\texttt{submit\_campaign.sh}\\array de Slurm};
+  \node[caja] (run)    at (9.0,0) {\texttt{array\_run.sbatch}\\$\rightarrow$ \texttt{run\_one.py}\\una combinación por fila};
+  \node[caja] (parse)  at (13.8,0) {\texttt{parse\_results.py}\\\texttt{summary.csv},\\registros JSON};
+  \draw[flecha] (matrix) -- (submit);
+  \draw[flecha] (submit) -- (run);
+  \draw[flecha] (run) -- (parse);
+\end{tikzpicture}
+}
+\caption{Flujo de la infraestructura de campaña en Finisterrae~III: generación
+de la matriz de combinaciones, envío como array de Slurm, ejecución de cada
+combinación y consolidación de resultados.}
+\label{fig:metodologia-campana}
+\end{figure}
+
+Cada fila de la matriz invoca el benchmark correspondiente mediante la
+interfaz común descrita en el Capítulo~\ref{chap:adaptacion-nas}:
 
 \begin{verbatim}
 python <BENCHMARK>_Python.py -c <CLASE> -t <HILOS> -m <MODO>
@@ -69,8 +96,8 @@ python <BENCHMARK>_Python.py -c <CLASE> -t <HILOS> -m <MODO>
 Para cada ejecución se registra la salida estándar, la salida de error, el
 código de retorno, el tiempo de proceso externo, el tiempo interno NAS, los
 Mop/s y el estado de verificación. Las combinaciones se distribuyen entre
-múltiples trabajos Slurm mediante arrays (\texttt{--array}); cada elemento del
-array ejecuta varias filas de la matriz de forma secuencial. Esta organización
+múltiples trabajos Slurm mediante arrays (\texttt{--array}), donde cada elemento
+ejecuta varias filas de la matriz de forma secuencial. Esta organización
 evita una ejecución monolítica, limita el número de trabajos enviados al
 planificador y produce ficheros con nombres semánticos, no dependientes del
 identificador interno de Slurm.
@@ -200,8 +227,8 @@ medida exacta del kernel.
 \label{sec:justificacion-modos}
 
 Los modos~0 y~1 no incluyen compilación Cython. En clase~S, el modo~0 ya
-presenta tiempos entre uno y varios órdenes de magnitud superiores a los del
-modo~3 en los cinco benchmarks. Extender esos modos a clases W o~A consumiría
+multiplica los tiempos del modo~3 por factores que van de $16\times$ en FT a
+$381\times$ en MG. Extender esos modos a clases W o~A consumiría
 recursos de cluster desproporcionados sin añadir información relevante sobre la
 escalabilidad paralela, que es el objetivo de las clases mayores. Por ello, los
 modos~0 y~1 se evalúan de forma completa solo en clase~S.

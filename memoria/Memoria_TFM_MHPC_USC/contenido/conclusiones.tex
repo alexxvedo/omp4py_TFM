@@ -27,7 +27,7 @@ clase~S, la mejora con un hilo es de $125.77\times$ en CG, $29.39\times$ en
 EP, $15.26\times$ en FT y $324.00\times$ en MG. En clase~W, los factores son
 $135.42\times$ en CG, $29.45\times$ en EP, $15.89\times$ en FT,
 $184.67\times$ en IS y $440.51\times$ en MG. Por tanto, para estos benchmarks
-el tipado no es una optimización menor; es la condición que convierte el código
+el tipado no es una optimización menor. Es la condición que convierte el código
 OMP4Py en una ejecución competitiva.
 
 \paragraph{Python~3.15t escala en EP y FT.}
@@ -37,6 +37,10 @@ $10.50\times$ a 32~hilos y FT alcanza $14.03\times$ a 32~hilos, con un óptimo
 de $14.69\times$ en 16~hilos. En clase~W, EP llega a $9.90\times$ y FT a
 $8.00\times$ a 32~hilos. Estos resultados muestran que el port puede explotar
 paralelismo real cuando el kernel tiene suficiente trabajo independiente.
+Además, EP en modo~1 alcanza $29.16\times$ a 32~hilos en clase~S, una
+aceleración casi lineal sobre código interpretado que demuestra que la
+eliminación del GIL produce paralelismo real al nivel del propio Python,
+aunque sin valor práctico en tiempo absoluto frente al modo tipado.
 
 \paragraph{CG, IS y MG siguen siendo los límites principales.}
 CG, IS y MG no obtienen escalabilidad sostenida en modo~3. CG empeora al
@@ -140,7 +144,7 @@ número de hilos tampoco ayuda por sí solo: en CG y MG empeora el tiempo, y en 
 solo aporta una mejora limitada con pocos hilos. El modo~2 no es una alternativa
 práctica aunque en algunos casos muestre speedups relativos altos, porque sus
 tiempos absolutos siguen siendo muy superiores a los del modo~3. Por último,
-fijar afinidad de OpenMP sin control puede distorsionar la medida; cualquier
+fijar afinidad de OpenMP sin control puede distorsionar la medida. Cualquier
 experimento con pinning debe documentarse y compararse frente a una ejecución sin
 afinidad explícita.
 
@@ -156,7 +160,7 @@ dependencias espaciales más complejas.
 OMP4Py permite expresar paralelismo de estilo OpenMP en Python y producir
 ejecuciones correctas sobre benchmarks numéricos no triviales. El resultado más
 sólido es la combinación de corrección funcional y mejora por tipado: el
-modo~3 reduce los tiempos entre uno y varios órdenes de magnitud y hace viables
+modo~3 reduce los tiempos hasta en un factor de $440\times$ y hace viables
 cargas que en modo~2 serían demasiado costosas.
 
 El rendimiento paralelo es positivo, pero selectivo. EP y FT muestran speedups

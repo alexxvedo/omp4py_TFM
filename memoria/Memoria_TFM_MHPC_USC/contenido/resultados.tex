@@ -59,8 +59,8 @@ la compilación, sino el tipado. En CG, el modo~2 tarda 16.35~s y el modo~3
 0.13~s. En MG, el modo~2 tarda 3.24~s y el modo~3 0.01~s. EP y FT muestran el
 mismo patrón con factores de $29.39\times$ y $15.26\times$. Sin anotaciones de
 tipo, Cython conserva demasiada semántica de objetos Python dentro de los
-bucles críticos; con modo~3, esos bucles pasan a ejecutarse como código nativo
-efectivo.
+bucles críticos. Con el modo~3, esos bucles pasan a ejecutarse como código
+nativo efectivo.
 
 Los modos~0 y~1 quedan prácticamente superpuestos con un hilo. La transformación
 OMP4Py, por sí sola, no aporta rendimiento cuando no se combina con compilación
@@ -99,12 +99,25 @@ $9.00\times$ y FT $9.64\times$. En EP, los modos~0,~1 y~2 también muestran
 speedups altos, señal de que el kernel dispone de trabajo paralelo suficiente
 incluso en la clase pequeña.
 
+El caso de EP en los modos interpretados merece una lectura propia. En modo~1,
+EP alcanza $29.16\times$ a 32~hilos, una aceleración casi lineal sobre código
+Python interpretado. Este resultado es la evidencia más directa de la campaña
+de que el intérprete \emph{free-threaded} cumple su objetivo. Sin el GIL, los
+hilos Python ejecutan trabajo en paralelo real sin necesidad de compilación
+alguna. Que el speedup relativo del modo~3 sea menor ($9.00\times$) no
+contradice esa lectura. El tipado acelera el cómputo pero no la sincronización,
+por lo que la fracción de espera pesa más cuanto más rápido es el kernel. La
+comparación en tiempo absoluto mantiene, no obstante, la conclusión práctica.
+El modo~3 con un hilo (1.44~s) ya es más rápido que el modo~1 con 32~hilos
+(aproximadamente 1.7~s), de modo que la escalabilidad casi ideal del modo
+interpretado tiene valor diagnóstico, no práctico.
+
 El comportamiento no es uniforme. CG y MG empeoran en modo~3, con
 $0.15\times$ y $0.05\times$ respectivamente. IS no permite calcular un speedup
 fiable en modo~3 porque el tiempo base aparece redondeado a 0.00~s. La clase~S
-confirma, por tanto, una división que se mantiene en clases mayores: EP y FT
-son los candidatos naturales a escalar; CG, IS y MG están más condicionados por
-sincronización, granularidad o accesos irregulares.
+confirma, por tanto, una división que se mantiene en clases mayores. EP y FT
+son los candidatos naturales a escalar, mientras que CG, IS y MG están más
+condicionados por sincronización, granularidad o accesos irregulares.
 
 La lectura metodológica es que la clase~S sirve para validar todos los caminos y
 para observar tendencias iniciales, pero las conclusiones prácticas deben
@@ -309,7 +322,7 @@ compartida de forma efectiva.
 FT también escala, aunque su punto óptimo aparece antes de
 32~hilos. En clase~A, el mejor resultado está en 16~hilos con $14.69\times$,
 mientras que a 32~hilos queda en $14.03\times$. La FFT combina cómputo
-numérico con accesos a memoria y sincronizaciones entre fases; esto explica que
+numérico con accesos a memoria y sincronizaciones entre fases. Esto explica que
 añadir más hilos siga ayudando hasta cierto punto, pero que el máximo no sea
 necesariamente el mayor recuento evaluado.
 
@@ -354,11 +367,13 @@ del mejor modo disponible.
 
 La campaña principal deja cuatro conclusiones. Primero, las cinco adaptaciones
 son funcionalmente correctas en todos los caminos evaluados. Segundo, el modo~3
-reduce los tiempos entre uno y varios órdenes de magnitud frente al modo~2.
+reduce los tiempos frente al modo~2 en factores que van de $15\times$ en FT a
+$440\times$ en MG.
 Tercero, Python~3.15t obtiene escalabilidad significativa en EP y FT, con
 speedups superiores a $10\times$ en clase~A. Cuarto, esa escalabilidad no es
-general: CG, IS y MG siguen limitados por sincronización, granularidad y
-patrones de memoria.
+general. CG sigue limitado por sus reducciones y barreras, IS por su fase
+secuencial de prefijos y MG por la granularidad desigual de los niveles de
+malla.
 
 El Capítulo~\ref{chap:profiling} utiliza \texttt{perf stat} para relacionar
 los speedups observados con ocupación real de CPU, IPC y eventos de memoria. El

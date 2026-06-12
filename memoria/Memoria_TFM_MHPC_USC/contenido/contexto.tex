@@ -56,23 +56,55 @@ ejecución mediante el argumento \texttt{-m}:
 \begin{tabular}{c|l|l}
 Modo & Nombre & Descripción \\
 \hline
-0 & puro      & Transformación OMP4Py sobre el runtime Python. \\
-1 & híbrido   & Transformación AST + hilos Python; sin compilación. \\
+0 & puro      & Runtime puro de OMP4Py en Python; kernels sin compilar. \\
+1 & híbrido   & Runtime nativo (Cython) si está disponible; kernels sin compilar. \\
 2 & compilado & Kernels compilados a Cython; tipos inferidos. \\
 3 & compilado tipado & Cython con anotaciones de tipo explícitas y memoryviews. \\
 \end{tabular}
 \end{center}
 
-En los modos~0 y~1, las directivas se transforman mediante el árbol sintáctico
-abstracto (AST) del módulo \texttt{ast} de Python. El modo~0 actúa como línea
-base funcional sobre el runtime Python de OMP4Py, sin generación de código
-Cython. El modo~1 usa la ruta híbrida con hilos Python reales mediante la API de
-\texttt{threading}, de modo que en Python~\emph{free-threaded} puede aprovechar
-múltiples núcleos. Los modos~2 y~3 compilan los kernels a C mediante
-Cython~\cite{Cython2011}. La
+En los cuatro modos, las directivas se transforman mediante el árbol sintáctico
+abstracto (AST) del módulo \texttt{ast} de Python y el paralelismo se ejecuta
+con hilos reales de la API \texttt{threading}, de modo que en
+Python~\emph{free-threaded} pueden aprovechar múltiples núcleos. La diferencia
+entre modos está en qué partes del código se compilan
+(Figura~\ref{fig:contexto-pipeline}). En los modos~0 y~1 los kernels del
+usuario no se compilan. El modo~0 fuerza el runtime puro de OMP4Py, cuyas
+primitivas de distribución de trabajo y sincronización están implementadas en
+Python, y actúa como línea base funcional. El modo~1 usa el runtime por
+defecto, que emplea la implementación nativa del propio runtime, compilada con
+Cython, cuando está disponible. Los modos~2 y~3 compilan además los kernels del
+usuario a C mediante Cython~\cite{Cython2011}. La
 diferencia entre ellos es que el modo~3 permite anotar variables con tipos
 Cython (\texttt{cython.double}, \texttt{cython.int}, memoryviews) para eliminar
 la indirección de los objetos Python en los bucles numéricos.
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  caja/.style={draw, rounded corners, align=center, minimum height=12mm,
+               inner sep=2.5mm, font=\small},
+  flecha/.style={->, thick}
+]
+  \node[caja] (src) at (0,0) {Código Python con\\directivas \texttt{omp(...)}};
+  \node[caja] (ast) at (4.8,0) {Transformación AST\\(módulo \texttt{ast})};
+  \node[caja] (pure) at (10.0,1.6) {Modos 0--1:\\kernels interpretados};
+  \node[caja] (cy)  at (10.0,-1.6) {Modos 2--3: kernels Cython\\(tipos explícitos en modo 3)};
+  \node[caja] (rt)  at (15.4,0) {Runtime OMP4Py:\\equipo de hilos, \texttt{for},\\reducciones, barreras};
+  \draw[flecha] (src) -- (ast);
+  \draw[flecha] (ast) -- (pure);
+  \draw[flecha] (ast) -- (cy);
+  \draw[flecha] (pure) -- (rt);
+  \draw[flecha] (cy) -- (rt);
+\end{tikzpicture}
+}
+\caption{Flujo de ejecución de un programa OMP4Py. Las directivas se procesan
+mediante transformación AST en todos los modos. El modo determina si los
+kernels del usuario se compilan con Cython y qué implementación del runtime
+ejecuta la distribución de trabajo y la sincronización.}
+\label{fig:contexto-pipeline}
+\end{figure}
 
 La compilación en los modos~2 y~3 se realiza en tiempo de ejecución, antes del
 primer uso de cada kernel. Los kernels compilados se almacenan en caché para
@@ -131,10 +163,15 @@ El paralelismo en Python se ha abordado tradicionalmente por vías que evitan el
 GIL en lugar de eliminarlo. Las extensiones nativas como NumPy~\cite{NumPy2020}
 liberan el GIL durante operaciones vectoriales, y compiladores como
 Numba~\cite{Numba2015} o Cython~\cite{Cython2011} generan código máquina para
-funciones numéricas; en todos los casos el modelo de programación paralela queda
-oculto en la capa nativa y no se expresa al nivel del código Python. El
-paralelismo de procesos —\texttt{multiprocessing}, mpi4py~\cite{mpi4py2011} o
-Dask~\cite{Dask2015}— escala a múltiples nodos, pero con memoria privada y un
+funciones numéricas. En todos los casos el modelo de programación paralela queda
+oculto en la capa nativa y no se expresa al nivel del código Python. La
+excepción más próxima a OMP4Py es PyOMP~\cite{PyOMP2021}, que añade directivas
+OpenMP a funciones compiladas con Numba. Su alcance queda, sin embargo,
+restringido al subconjunto del lenguaje que Numba puede compilar, mientras que
+OMP4Py opera sobre código Python estándar y delega en Cython la compilación
+opcional de los kernels. El
+paralelismo de procesos (\texttt{multiprocessing}, mpi4py~\cite{mpi4py2011} o
+Dask~\cite{Dask2015}) escala a múltiples nodos, pero con memoria privada y un
 coste de comunicación que no corresponde al modelo de memoria compartida de
 OpenMP~\cite{OpenMPSpec,DagumMenon1998}.
 

@@ -61,7 +61,7 @@ versiones C/OpenMP originales. El proceso se estructuró en diez pasos:
         modificación.
   \item Separar los kernels numéricos del código de orquestación (temporizadores,
         E/S, verificación).
-  \item Compilar solo los kernels; pasar tamaños y constantes como argumentos.
+  \item Compilar solo los kernels y pasar tamaños y constantes como argumentos.
   \item Cambiar el indexado NumPy encadenado (\texttt{u[k][j][i]}) por indexado
         directo (\texttt{u[k, j, i]}).
   \item Añadir anotaciones de tipo Cython y memoryviews en el modo~3.
@@ -237,7 +237,7 @@ cada iteración del bucle interior de \texttt{fftz2} realiza dos multiplicacione
 y dos sumas sobre complejos.
 
 FT sí muestra speedup en modo~3. En clase~W, el mejor punto aparece con
-16~hilos; en clase~A, el speedup óptimo es $14.69\times$. La limitación aparece
+16~hilos y en clase~A el speedup óptimo es $14.69\times$. La limitación aparece
 al aumentar demasiado el número de hilos. La FFT tridimensional tiene
 dependencias entre pasadas: la pasada sobre el eje $x$ debe completarse antes
 de la pasada sobre el eje $y$, que a su vez precede a la pasada sobre el eje

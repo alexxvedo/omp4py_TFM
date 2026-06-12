@@ -27,7 +27,7 @@ incluyó una ejecución de calentamiento previa para reducir el efecto de la
 compilación Cython sobre los contadores.
 
 Las métricas de \texttt{perf stat} deben interpretarse con cautela en
-benchmarks cortos. IS clase~W tarda centésimas de segundo; en ese caso, el
+benchmarks cortos. IS clase~W tarda centésimas de segundo. En ese caso, el
 arranque del proceso y las bibliotecas importadas pueden pesar tanto como el
 kernel. También se observan valores de CPUs utilizadas superiores a uno en
 algunas ejecuciones con un hilo, precisamente porque \texttt{perf} mide el
@@ -249,10 +249,10 @@ estructura casi independiente y mantiene el mejor resultado hasta 32~hilos. FT
 escala hasta 16~hilos y después pierde eficiencia por memoria y sincronización.
 
 El segundo grupo contiene CG y MG. Estos benchmarks sí pueden activar varias
-CPUs, pero el IPC cae al aumentar los hilos y el tiempo empeora. El límite
-principal no es la ausencia total de paralelismo, sino que el paralelismo
-disponible está rodeado de reducciones, barreras, accesos irregulares o fases
-con granularidad distinta.
+CPUs, pero el IPC cae al aumentar los hilos y el tiempo empeora. El paralelismo
+existe, pero las reducciones, las barreras y las fases de granularidad distinta
+fragmentan cada región paralela y dejan poco trabajo útil entre
+sincronizaciones.
 
 El tercer grupo es IS. Su tiempo absoluto es tan bajo en W que el overhead de
 coordinar muchos hilos domina rápidamente. En clase~A se observa una mejora
@@ -288,11 +288,11 @@ beta temprano de Python~3.15) esa localización falla sobre la \texttt{libpython
 compartida, por lo que esta campaña complementaria se ejecutó en un nodo local de
 16~núcleos con el mismo intérprete Python~3.15.0b1t \emph{free-threaded}, el mismo
 código y la misma clase de problema. Las campañas de rendimiento de los capítulos
-anteriores siguen siendo la referencia sobre Finisterrae~III; este estudio añade
+anteriores siguen siendo la referencia sobre Finisterrae~III. Este estudio añade
 la visión por función e hilo que aquéllas no proporcionan. Se midió en modo~1
 (híbrido, hilos Python reales sobre el runtime interpretado) porque en ese modo
 las primitivas de sincronización de OMP4Py son funciones Python visibles al
-profiler; en modo~3 los kernels y sus barreras se compilan a código nativo y el
+profiler. En modo~3 los kernels y sus barreras se compilan a código nativo y el
 muestreador de pilas Python no las observa. Cada ejecución se muestreó a
 1000--2000~Hz con el muestreo de todos los hilos activado.
 
@@ -303,7 +303,7 @@ espera aparece en \texttt{threading.Condition.wait}, alcanzada a través de
 \texttt{parallelism.py:parallel\_run} y la barrera interna del runtime. El coste
 de sincronización crece con el número de hilos en los cuatro benchmarks. Con
 4~hilos, EP dedica solo el 1.0\% del tiempo paralelo a esperar, frente al
-9--12\% de CG, FT y MG; con 8~hilos los cuatro se sitúan entre el 16\% y el
+9--12\% de CG, FT y MG. Con 8~hilos los cuatro se sitúan entre el 16\% y el
 20\%. En FT, donde la FFT impone barreras entre pasadas, la fracción sigue
 subiendo hasta el 25.8\% con 16~hilos. Este patrón es coherente con la ley de
 Amdahl~\cite{Amdahl1967} y con los resultados de rendimiento: el tipado del
@@ -324,7 +324,7 @@ Esa creación y destrucción repetida de equipos es en sí misma una fuente de
 sobrecoste y explica parte de la degradación de CG y MG al aumentar la
 concurrencia. Sobre el equipo persistente de EP, el reparto de muestras de
 cómputo entre hilos trabajadores es razonablemente equilibrado (cociente entre el
-mínimo y el máximo entre 0.76 y 0.97 según el número de hilos); en los kernels con
+mínimo y el máximo entre 0.76 y 0.97 según el número de hilos). En los kernels con
 rotación de equipos no existe un equipo estable sobre el que medir balance, y el
 propio recuento de hilos efímeros pasa a ser el indicador relevante.
 

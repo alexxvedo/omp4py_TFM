@@ -28,7 +28,7 @@ campaña completa contiene 1440~ejecuciones y todas finalizaron con verificació
 \texttt{SUCCESSFUL}.
 
 No se incluyó la clase~A porque el coste habría multiplicado el uso del
-cluster. La clase~A ya se evaluó con Python~3.15t en la campaña principal; la
+cluster. La clase~A ya se evaluó con Python~3.15t en la campaña principal. La
 comparación entre versiones se centra en observar si las tendencias de S y W
 cambian al modificar el intérprete.
 
@@ -331,8 +331,9 @@ puede cambiar la conclusión experimental.
 La segunda implicación afecta a OMP4Py. El mismo port escala en EP y FT con las
 tres versiones evaluadas, lo que refuerza que las regiones paralelas están
 expresadas correctamente para esos kernels. En CG, IS y MG, en cambio, cambiar
-de versión no basta. Sus límites parecen ligados a sincronización, granularidad
-o patrones de memoria.
+de versión no basta. Sus límites están en la estructura de cada kernel y en el
+coste de coordinación del runtime, como muestra el
+Capítulo~\ref{chap:profiling}.
 
 La tercera implicación es práctica. Para estos benchmarks, la elección entre
 Python~3.13t, 3.14t y 3.15t no cambia la conclusión principal cuando el entorno

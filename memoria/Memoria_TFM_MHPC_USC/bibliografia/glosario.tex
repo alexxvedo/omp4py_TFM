@@ -36,11 +36,11 @@
         C, eliminando la indirección de los objetos Python en los bucles
         internos.
 
-  \item[Modo de ejecución] En OMP4Py, configuración que determina cómo se
-        procesan las directivas OpenMP: modo~0 (puro, sin transformación),
-        modo~1 (híbrido, con transformación AST pero sin compilación),
-        modo~2 (compilado con Cython) y modo~3 (compilado con tipado
-        Cython).
+  \item[Modo de ejecución] En OMP4Py, configuración que determina qué partes
+        del código se compilan: modo~0 (runtime puro de OMP4Py en Python),
+        modo~1 (híbrido, runtime nativo cuando está disponible; kernels sin
+        compilar), modo~2 (kernels compilados con Cython) y modo~3 (kernels
+        compilados con tipado Cython explícito).
 
   \item[OMP4Py] Implementación en Python puro del modelo de programación
         OpenMP. Traduce directivas OpenMP embebidas como cadenas de texto en
