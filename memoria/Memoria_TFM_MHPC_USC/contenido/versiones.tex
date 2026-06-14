@@ -32,6 +32,19 @@ cluster. La clase~A ya se evaluó con Python~3.15t en la campaña principal. La
 comparación entre versiones se centra en observar si las tendencias de S y W
 cambian al modificar el intérprete.
 
+Más allá del coste de cluster, hay una razón de fondo para no esperar
+diferencias en clase~A. En modo~3, el cómputo de cada kernel se ejecuta como
+código C nativo, ajeno al intérprete, de modo que la versión de Python solo
+puede influir a través del coste de coordinación paralela: la creación y
+destrucción de equipos de hilos, las barreras, las reducciones y el conteo de
+referencias sobre los arrays compartidos en las fronteras de cada región. Al
+pasar a una clase mayor crece el trabajo útil dentro de cada región, que es la
+parte independiente del intérprete, mientras que esa coordinación se mantiene en
+el mismo orden. La fracción sensible a la versión es por tanto menor en clase~A
+que en S y~W. Las clases S y~W ya miden esa coordinación entre las tres
+versiones (incluidos los benchmarks con más rotación de equipos, como CG y MG) y
+la encuentran equivalente.
+
 Al igual que en el resto de la memoria, se usa el mejor tiempo NAS entre las
 repeticiones válidas. Los tiempos externos del proceso se conservan en los
 registros, pero no se emplean para comparar rendimiento porque incluyen costes
