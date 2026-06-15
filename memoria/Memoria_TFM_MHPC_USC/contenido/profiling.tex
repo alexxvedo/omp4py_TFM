@@ -37,18 +37,14 @@ proceso completo y no solo la región paralela.
 \section{Control de entorno y afinidad}
 \label{sec:profiling-afinidad}
 
-Durante la fase de diagnóstico se detectó que las campañas preliminares fijaban
-afinidad de OpenMP mediante variables como \texttt{OMP\_PROC\_BIND} y
-\texttt{OMP\_PLACES}. Esa configuración producía una serialización aparente en
-algunas ejecuciones de Python~3.15t, especialmente en EP y FT. Las campañas
-finales eliminan esas variables por defecto en los scripts de ejecución y solo
-permiten activarlas explícitamente para experimentos controlados.
-
-Este punto cambia la interpretación del trabajo. La falta de escalabilidad
-observada inicialmente en Python~3.15t no se reproduce en las campañas finales:
-con la afinidad corregida, Python~3.15t escala en EP y FT de forma comparable a
-Python~3.13t y Python~3.14t. Por tanto, el análisis final no atribuye a
-Python~3.15t una incapacidad general para ejecutar estos kernels en paralelo.
+Las campañas finales no fijan por defecto las variables de afinidad de OpenMP
+(\texttt{OMP\_PROC\_BIND}, \texttt{OMP\_PLACES} y \texttt{GOMP\_CPU\_AFFINITY}).
+Anclar los hilos a núcleos concretos sin control puede distorsionar la
+planificación del intérprete \emph{free-threaded} y sesgar la comparación entre
+versiones y recuentos de hilos, por lo que estas variables se eliminan de forma
+explícita en los scripts de ejecución y solo se activan para experimentos
+controlados. Con esta configuración, Python~3.15t usa varios núcleos y escala en
+EP y FT de forma comparable a Python~3.13t y Python~3.14t.
 
 También se realizaron pruebas de aislamiento. \texttt{sys.\_is\_gil\_enabled()}
 se mantuvo en \texttt{False} antes y después de importar OMP4Py, Cython y los
@@ -57,28 +53,6 @@ kernel OMP4Py mínimo usaron varias CPUs en Python~3.14t y Python~3.15t. Estas
 pruebas apoyan la interpretación de que los problemas restantes pertenecen a
 los kernels concretos o a su interacción con el runtime, no a una reactivación
 implícita del GIL.
-
-
-\section{Cuellos de botella corregidos durante el port}
-\label{sec:profiling-cuello-port}
-
-Antes de la campaña final se corrigieron varios cuellos de botella de código.
-En EP, la función \texttt{vranlc}, encargada de generar números
-pseudoaleatorios, se llamaba desde el kernel compilado como función Python
-externa. Esa llamada impedía que el modo~2 compilase todo el cuerpo relevante.
-La solución fue incluir en \texttt{EP\_Python.py} versiones localmente
-compilables de \texttt{vranlc}, una sin tipos y otra tipada.
-
-En IS se revisó la inicialización de la secuencia de claves para que cada modo
-ejecutase la ruta correcta y no quedase una parte secuencial accidental en modo
-híbrido. En MG se redujo la dependencia de estado global en kernels como
-\texttt{zran3} y \texttt{norm2u3}, pasando los datos necesarios de forma
-explícita para facilitar la compilación efectiva por Cython.
-
-Estas correcciones son relevantes porque separan los límites del port de los
-límites del runtime. Los resultados finales miden versiones donde los kernels
-críticos están dentro del propio fichero del benchmark y son compilables por
-OMP4Py/Cython.
 
 
 \section{EP y FT: kernels que sí escalan}

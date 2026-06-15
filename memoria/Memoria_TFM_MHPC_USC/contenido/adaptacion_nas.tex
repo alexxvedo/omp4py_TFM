@@ -107,6 +107,21 @@ al código C/OpenMP no garantiza una semántica equivalente en Python. La
 visibilidad de las variables locales depende del ámbito léxico del intérprete,
 no de las reglas de ámbito de OpenMP.
 
+\paragraph{Funciones auxiliares compilables localmente.}
+Antes de la campaña final se corrigieron varios cuellos de botella derivados de
+funciones auxiliares definidas fuera del propio fichero del benchmark. En EP, la
+función \texttt{vranlc}, encargada de generar números pseudoaleatorios, se
+llamaba como función Python externa desde el kernel compilado, lo que impedía
+que el modo~2 compilase todo el cuerpo relevante. La solución fue incluir en
+\texttt{EP\_Python.py} versiones localmente compilables de \texttt{vranlc}, una
+sin tipos y otra tipada. En IS se revisó la inicialización de la secuencia de
+claves para que cada modo ejecutase la ruta correcta y no quedase una parte
+secuencial accidental en modo híbrido. Junto con la eliminación del estado
+global en MG que se describe más adelante, estas correcciones separan los
+límites del port de los límites del runtime. En las versiones finales, los
+kernels críticos están dentro del propio fichero del benchmark y son compilables
+por OMP4Py/Cython.
+
 
 \section{Particularidades por benchmark}
 \label{sec:particularidades-benchmarks}

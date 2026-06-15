@@ -200,6 +200,15 @@ Python~3.14t y Python~3.15t, usando 1, 8, 16 y 32~hilos. CG, IS y MG se
 midieron en clase~W, modo~3, con Python~3.13t, Python~3.14t y Python~3.15t,
 usando 1, 8 y 32~hilos.
 
+El reparto de configuraciones responde al objetivo de cada grupo. En EP y FT,
+que escalan, interesa la forma de la curva y el punto donde FT deja de mejorar,
+por lo que se incluye el recuento de 16~hilos y se comparan las dos versiones
+más recientes, Python~3.14t y 3.15t. En CG, IS y MG, que no escalan, interesa
+comprobar si esa ausencia de escalabilidad es común a las tres versiones del
+intérprete o propia de una, por lo que se añade Python~3.13t. Para ese grupo
+bastan 1, 8 y 32~hilos, porque la degradación ya es monótona y el punto
+intermedio de 16 no aporta información adicional.
+
 \begin{center}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{l|l}
