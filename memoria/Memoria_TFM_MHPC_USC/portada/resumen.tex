@@ -2,68 +2,70 @@
 
 \begin{abstract}
 \thispagestyle{empty}
-Este trabajo adapta cinco NAS Parallel Benchmarks (EP, CG, IS, MG y FT) al
-modelo de programación OMP4Py y los evalúa en el supercomputador Finisterrae~III
-con Python~3.15.0b1t \emph{free-threaded}. El conjunto cubre patrones de cómputo
-distintos: EP es embarazosamente paralelo, CG resuelve un sistema disperso con
-reducciones, IS ordena enteros, MG aplica operadores de malla multinivel y FT
-calcula una transformada de Fourier tridimensional.
+OMP4Py lleva el modelo de directivas de OpenMP al código Python. Este trabajo lo
+pone a prueba adaptando cinco NAS Parallel Benchmarks de naturaleza distinta
+(EP, CG, IS, MG y FT) y ejecutándolos en el supercomputador Finisterrae~III con
+Python~3.15.0b1t \emph{free-threaded}.
 
-La evaluación mide corrección, rendimiento absoluto y escalabilidad en cuatro
-modos de ejecución: puro, híbrido, compilado y compilado tipado. La campaña principal con
-Python~3.15.0b1t contiene 630 ejecuciones y la comparación entre
-Python~3.13.13t, 3.14.4t y 3.15.0b1t añade 1440 ejecuciones. Todas obtuvieron
-verificación \texttt{SUCCESSFUL}.
+La evaluación cubre corrección, tiempo absoluto y escalabilidad en los cuatro
+modos de OMP4Py, desde el intérprete puro hasta el Cython tipado. La campaña
+principal con Python~3.15.0b1t reúne 630 ejecuciones, y la comparación entre
+Python~3.13.13t, 3.14.4t y 3.15.0b1t añade otras 2340, en modos interpretados y
+compilados. Todas verificaron correctamente.
 
-El resultado más destacado es el impacto del tipado Cython. En la campaña
-principal, el modo compilado tipado reduce los tiempos de clase~W frente al
-modo compilado sin tipos en factores de $135.42\times$ en CG,
-$29.45\times$ en EP, $15.89\times$ en FT, $184.67\times$ en IS y
-$440.51\times$ en MG. El tipado elimina el despacho de objetos Python en los bucles críticos y convierte
-el modo~3 en la única configuración práctica para cargas grandes.
+El factor más determinante es el tipado Cython. En clase~W, al pasar del modo
+compilado sin tipos al tipado los tiempos caen en todos los benchmarks, desde el
+orden de $15\times$ en FT hasta más de dos órdenes de magnitud en los casos más
+favorables. La causa es directa. Sin anotaciones, cada operación del bucle
+crítico arrastra el despacho de objetos Python. Con ellas, el modo~3 es la única
+configuración viable para cargas grandes.
 
-Con Python~3.15t, la escalabilidad entre hilos depende del benchmark. EP y FT
-obtienen aceleraciones claras en clase~A, con $10.50\times$ y $14.03\times$ a
-32 hilos respectivamente. CG, IS y MG no muestran escalabilidad sostenida.
-CG queda limitado por sus reducciones frecuentes, IS por la fase secuencial
-de prefijos sobre un kernel muy corto y MG por la granularidad desigual de
-sus niveles de malla. La comparación entre Python~3.13t, 3.14t y 3.15t muestra que, con la
-afinidad de hilos corregida, las tres versiones se comportan de forma similar
-en EP y FT. El resultado indica que la utilidad práctica de OMP4Py depende de
-la interacción entre el tipado Cython, la configuración del runtime y la
-estructura del benchmark.
+La escalabilidad entre hilos es más desigual y depende del benchmark.
+EP y FT aceleran con claridad en clase~A y superan $10\times$ de speedup. Los
+otros tres no escalan de forma sostenida. El diagnóstico posterior atribuye esa
+diferencia a sincronización, granularidad y gestión de equipos de hilos,
+combinando \texttt{perf stat} con el muestreo y trazado de Python~3.15 en
+Finisterrae~III. La versión del intérprete apenas influye en los modos
+compilados. En ejecución interpretada, en cambio, Python~3.13t escala bastante
+peor al aumentar los hilos, salvo en EP, una penalización que el tipado elimina.
+Con la afinidad de hilos corregida, Python~3.13t, 3.14t y 3.15t rinden casi igual
+en EP y FT.
+OMP4Py resulta útil en la práctica, pero su rendimiento no es automático y
+depende del tipado Cython, de la configuración del runtime y de la estructura de
+cada kernel.
 
 \vspace*{25pt}
 \begin{otherlanguage}{english}
 \centerline{\bfseries \abstractname}
-This work adapts five NAS Parallel Benchmarks (EP, CG, IS, MG, and FT) to the
-OMP4Py programming model and evaluates them on the Finisterrae~III supercomputer
-using Python~3.15.0b1t free-threaded. The benchmarks cover distinct computational
-patterns. EP is embarrassingly parallel, CG solves a sparse linear system with
-reductions, IS sorts integers, MG applies multilevel grid operators, and FT
-computes a three-dimensional discrete Fourier transform.
+OMP4Py brings OpenMP's directive model to plain Python. This work puts it to the
+test by adapting five NAS Parallel Benchmarks of different nature (EP, CG, IS,
+MG, and FT) and running them on the Finisterrae~III supercomputer with
+Python~3.15.0b1t free-threaded.
 
-The evaluation measures correctness, absolute performance, and scalability
-across four execution modes. The main Python~3.15.0b1t campaign contains
-630 executions, and the comparison across Python~3.13.13t, 3.14.4t, and
-3.15.0b1t adds 1440 executions. All runs passed benchmark verification.
+The evaluation covers correctness, absolute time, and scalability across
+OMP4Py's four execution modes, from the pure interpreter to typed Cython. The
+main Python~3.15.0b1t campaign gathers 630 runs, and the comparison across
+Python~3.13.13t, 3.14.4t, and 3.15.0b1t adds another 2340, spanning interpreted
+and compiled modes. All of them verified correctly.
 
-The most significant result is the impact of Cython typing. In the main
-campaign, the typed compiled mode reduces class~W times over the untyped
-compiled mode by factors of $135.42\times$ in CG, $29.45\times$ in EP,
-$15.89\times$ in FT, $184.67\times$ in IS, and $440.51\times$ in MG. Typing
-removes Python object dispatch from critical loops and makes mode~3 the only
-practical configuration for large workloads.
+By far the dominant factor is Cython typing. In class~W, moving from the untyped
+compiled mode to the typed one reduces the times in every benchmark, from around
+$15\times$ in FT to more than two orders of magnitude in the most favorable
+cases. The reason is straightforward. Without annotations, every operation in the
+critical loop drags Python object dispatch along. With them, mode~3 becomes the
+only viable configuration for large workloads.
 
-With Python~3.15t, thread scalability depends on the benchmark. EP and FT obtain
-clear speedups in class~A, reaching $10.50\times$ and $14.03\times$ at
-32 threads, respectively. CG, IS, and MG do not show sustained scalability.
-CG is limited by frequent reductions, IS by a sequential prefix phase over a
-very short kernel, and MG by the uneven granularity of its grid levels.
-The comparison across Python~3.13t, 3.14t, and 3.15t shows that, once
-thread affinity is corrected, the three versions behave similarly in EP and FT.
-Overall, the practical usefulness of OMP4Py depends on the interaction between
-Cython typing, runtime configuration, and benchmark structure.
+Thread scalability is more uneven and depends on the benchmark. EP and FT speed
+up clearly in class~A, exceeding $10\times$ speedup. The other three do not show
+sustained scalability. The later diagnosis attributes this difference to
+synchronization, granularity, and thread-team management, combining
+\texttt{perf stat} with Python~3.15 sampling and tracing on Finisterrae~III. The
+interpreter version barely matters in the compiled modes. In interpreted
+execution, by contrast, Python~3.13t scales noticeably worse as threads grow,
+except on EP, a penalty that typing removes. Once thread affinity is fixed,
+Python~3.13t, 3.14t, and 3.15t behave almost identically on EP and FT. OMP4Py is
+useful in practice, but its performance is not automatic. It depends on Cython
+typing, on the runtime configuration, and on the structure of each kernel.
 \end{otherlanguage}
 
 \vspace*{25pt}

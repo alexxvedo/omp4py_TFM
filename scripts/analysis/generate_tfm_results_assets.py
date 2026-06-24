@@ -21,7 +21,7 @@ VERSIONS = [
     RESULTS_20260601 / "20260531_202503_versions_nopin" / "summary.csv",
     RESULTS_20260601 / "20260531_202503_versions_extra_threads_nopin" / "summary.csv",
 ]
-TFM = Path("/home/av/Documents/Master/TFM/omp4py/memoria/Memoria_TFM_MHPC_USC")
+TFM = ROOT / "memoria" / "Memoria_TFM_MHPC_USC"
 TABLE_DIR = TFM / "contenido" / "tablas"
 FIG_RES_DIR = TFM / "imagenes" / "resultados"
 FIG_VER_DIR = TFM / "imagenes" / "versiones"
@@ -169,15 +169,26 @@ def write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def table_env(label: str, caption: str, spec: str, header: str, rows: list[str], resize: bool = False) -> str:
+def table_env(
+    label: str,
+    caption: str,
+    spec: str,
+    header: str,
+    rows: list[str],
+    resize: bool = False,
+    font_size: str = "\\small",
+    arraystretch: float | None = None,
+) -> str:
     body = "\n".join(rows)
     tabular = f"\\begin{{tabular}}{{{spec}}}\n\\hline\n{header} \\\\\n\\hline\n{body}\n\\hline\n\\end{{tabular}}"
     if resize:
         tabular = "\\resizebox{\\textwidth}{!}{%\n" + tabular + "\n}"
+    arraystretch_cmd = f"\\renewcommand{{\\arraystretch}}{{{arraystretch}}}\n" if arraystretch is not None else ""
     return (
         "\\begin{table}[htbp]\n"
         "\\centering\n"
-        "\\small\n"
+        f"{font_size}\n"
+        f"{arraystretch_cmd}"
         f"{tabular}\n"
         f"\\caption{{{caption}}}\n"
         f"\\label{{{label}}}\n"
@@ -188,7 +199,7 @@ def table_env(label: str, caption: str, spec: str, header: str, rows: list[str],
 def make_tables(full: dict, versions: dict, full_records: list[dict], version_records: list[dict]) -> None:
     rows = [
         "Campaña principal Python~3.15t & 630 & 630 & 100\\% & S: modos 0--3; W: modos 2--3; A: modo 3 \\\\",
-        "Comparación de versiones & 1440 & 1440 & 100\\% & Python 3.13t, 3.14t y 3.15t; clases S y W; modos 2--3 \\\\",
+        "Comparación de versiones & 1440 & 1440 & 100\\% & Python~3.13t, 3.14t y 3.15t; clases S y W; modos 2--3 \\\\",
     ]
     write(
         TABLE_DIR / "resultados_cobertura_global.tex",
@@ -230,7 +241,7 @@ def make_tables(full: dict, versions: dict, full_records: list[dict], version_re
         TABLE_DIR / "resultados_s_speedup32_modos.tex",
         table_env(
             "tab:resultados-s-speedup32-modos",
-            "Speedup a 32 hilos respecto a 1 hilo en clase~S para cada modo de Python~3.15t.",
+            "Speedup a 32~hilos respecto a 1~hilo en clase~S para cada modo de Python~3.15t.",
             "lrrrr",
             "Benchmark & M0 & M1 & M2 & M3",
             rows,
@@ -263,7 +274,7 @@ def make_tables(full: dict, versions: dict, full_records: list[dict], version_re
         TABLE_DIR / "resultados_w_speedup32_modos.tex",
         table_env(
             "tab:resultados-w-speedup32-modos",
-            "Speedup a 32 hilos respecto a 1 hilo en clase~W para los modos compilados de Python~3.15t.",
+            "Speedup a 32~hilos respecto a 1~hilo en clase~W para los modos compilados de Python~3.15t.",
             "lrr",
             "Benchmark & M2 & M3",
             rows,
@@ -339,7 +350,7 @@ def make_tables(full: dict, versions: dict, full_records: list[dict], version_re
         TABLE_DIR / "resultados_mode3_t32_sintesis.tex",
         table_env(
             "tab:resultados-mode3-t32-sintesis",
-            "Síntesis de tiempos, speedup y Mop/s a 32 hilos en modo~3, Python~3.15t.",
+            "Síntesis de tiempos, speedup y Mop/s a 32~hilos en modo~3, Python~3.15t.",
             "llrrrr",
             "Clase & Bench. & T1 (s) & T32 (s) & Speedup32 & Mop/s32",
             rows,
@@ -356,7 +367,7 @@ def make_tables(full: dict, versions: dict, full_records: list[dict], version_re
         TABLE_DIR / "versiones_t1_mode3.tex",
         table_env(
             "tab:versiones-t1-mode3",
-            "Mejor tiempo NAS con 1 hilo en modo~3 para cada versión de Python.",
+            "Mejor tiempo NAS con 1~hilo en modo~3 para cada versión de Python.",
             "llrrr",
             "Clase & Bench. & 3.13t (s) & 3.14t (s) & 3.15t (s)",
             rows,
@@ -372,7 +383,7 @@ def make_tables(full: dict, versions: dict, full_records: list[dict], version_re
         TABLE_DIR / "versiones_t32_mode3.tex",
         table_env(
             "tab:versiones-t32-mode3",
-            "Mejor tiempo NAS con 32 hilos en modo~3 para cada versión de Python.",
+            "Mejor tiempo NAS con 32~hilos en modo~3 para cada versión de Python.",
             "llrrr",
             "Clase & Bench. & 3.13t (s) & 3.14t (s) & 3.15t (s)",
             rows,
@@ -388,7 +399,7 @@ def make_tables(full: dict, versions: dict, full_records: list[dict], version_re
         TABLE_DIR / "versiones_speedup32_mode3.tex",
         table_env(
             "tab:versiones-speedup32-mode3",
-            "Speedup a 32 hilos respecto a 1 hilo en modo~3 para cada versión de Python.",
+            "Speedup a 32~hilos respecto a 1~hilo en modo~3 para cada versión de Python.",
             "llrrr",
             "Clase & Bench. & 3.13t & 3.14t & 3.15t",
             rows,
@@ -473,39 +484,10 @@ def make_tables(full: dict, versions: dict, full_records: list[dict], version_re
         TABLE_DIR / "versiones_ganador_t32_mode3.tex",
         table_env(
             "tab:versiones-ganador-t32-mode3",
-            "Versión más rápida con 32 hilos en modo~3 y margen sobre la segunda mejor.",
+            "Versión más rápida con 32~hilos en modo~3 y margen sobre la segunda mejor.",
             "llrrrr",
             "Clase & Bench. & Ganadora & Tiempo (s) & Segunda (s) & Margen",
             rows,
-        ),
-    )
-
-    rows = []
-    for cls in ["S", "W"]:
-        for bench in BENCHES:
-            best = {}
-            for mode in [2, 3]:
-                candidates = [
-                    (py, t, value(versions, py, bench, cls, mode, t))
-                    for py in PYS
-                    for t in THREADS_VERSIONS
-                ]
-                candidates = [(py, t, v) for py, t, v in candidates if v is not None]
-                best[mode] = min(candidates, key=lambda item: item[2])
-            rows.append(
-                f"{cls} & {bench} & {best[2][0]} & {best[2][1]} & {fmt_s(best[2][2])} & "
-                f"{best[3][0]} & {best[3][1]} & {fmt_s(best[3][2])} & "
-                f"{fmt_x(ratio(best[2][2], best[3][2]))} \\\\"
-            )
-    write(
-        TABLE_DIR / "versiones_modo2_vs_modo3_best.tex",
-        table_env(
-            "tab:versiones-modo2-vs-modo3-best",
-            "Mejor resultado de modo~2 frente a modo~3 considerando todas las versiones de Python y todos los recuentos de hilos.",
-            "llrrrrrrr",
-            "Clase & Bench. & Mejor M2 & Hilos M2 & M2 (s) & Mejor M3 & Hilos M3 & M3 (s) & M2/M3",
-            rows,
-            resize=True,
         ),
     )
 
@@ -520,11 +502,13 @@ def make_tables(full: dict, versions: dict, full_records: list[dict], version_re
         TABLE_DIR / "versiones_tipado_t1.tex",
         table_env(
             "tab:versiones-tipado-t1",
-            "Efecto del tipado Cython con 1 hilo en la campaña de comparación de versiones.",
+            "Efecto del tipado Cython con 1~hilo en la campaña de comparación de versiones.",
             "lllrrr",
             "Clase & Bench. & Python & M2 (s) & M3 (s) & M2/M3",
             rows,
             resize=True,
+            font_size="\\scriptsize",
+            arraystretch=0.92,
         ),
     )
 
@@ -619,6 +603,7 @@ FONT = {
     "-": ["00000", "00000", "00000", "11110", "00000", "00000", "00000"],
     ".": ["00000", "00000", "00000", "00000", "00000", "01100", "01100"],
     ":": ["00000", "01100", "01100", "00000", "01100", "01100", "00000"],
+    "%": ["11001", "11010", "00100", "01000", "10110", "00110", "00000"],
     "/": ["00001", "00010", "00100", "01000", "10000", "00000", "00000"],
     "0": ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
     "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
@@ -786,6 +771,78 @@ def grouped_bar(path: Path, title: str, groups: list[str], bars: list[tuple[str,
     c.write_png(path)
 
 
+def mix_color(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int, int, int]:
+    t = min(1.0, max(0.0, t))
+    return tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+def heat_color_speedup(value_: float | None, vmax: float) -> tuple[int, int, int]:
+    if value_ is None or math.isnan(value_) or math.isinf(value_):
+        return (238, 238, 238)
+    red = (190, 70, 65)
+    yellow = (244, 212, 112)
+    green = (68, 150, 90)
+    if value_ <= 1.0:
+        return mix_color(red, yellow, value_)
+    return mix_color(yellow, green, (value_ - 1.0) / max(vmax - 1.0, 1.0))
+
+
+def heat_color_sequential(value_: float | None, vmax: float) -> tuple[int, int, int]:
+    if value_ is None or math.isnan(value_) or math.isinf(value_):
+        return (238, 238, 238)
+    pale = (255, 242, 190)
+    orange = (230, 130, 65)
+    red = (160, 45, 55)
+    t = min(1.0, max(0.0, value_ / vmax))
+    if t <= 0.5:
+        return mix_color(pale, orange, t * 2.0)
+    return mix_color(orange, red, (t - 0.5) * 2.0)
+
+
+def color_luminance(color: tuple[int, int, int]) -> float:
+    r, g, b = color
+    return 0.299 * r + 0.587 * g + 0.114 * b
+
+
+def canvas_heatmap(
+    path: Path,
+    title: str,
+    columns: list[str],
+    rows: list[str],
+    values: list[list[float | None]],
+    color_fn,
+    value_fmt,
+    legend: str,
+) -> None:
+    c = Canvas(1200, 720)
+    c.text(80, 32, title, scale=3)
+    left, top = 220, 145
+    plot_w, plot_h = 760, 420
+    cell_w = plot_w // len(columns)
+    cell_h = plot_h // len(rows)
+
+    for j, label in enumerate(columns):
+        x = left + j * cell_w + cell_w // 2 - len(label) * 9
+        c.text(x, top - 44, label, scale=3)
+    for i, label in enumerate(rows):
+        y = top + i * cell_h + cell_h // 2 - 11
+        c.text(70, y, label, scale=3)
+
+    for i, row_values in enumerate(values):
+        for j, value_ in enumerate(row_values):
+            x0 = left + j * cell_w
+            y0 = top + i * cell_h
+            color = color_fn(value_)
+            c.rect(x0, y0, x0 + cell_w - 2, y0 + cell_h - 2, color)
+            c.rect(x0, y0, x0 + cell_w - 2, y0 + cell_h - 2, (255, 255, 255), fill=False)
+            text = value_fmt(value_)
+            text_color = (255, 255, 255) if color_luminance(color) < 115 else (25, 25, 25)
+            c.text(x0 + cell_w // 2 - len(text) * 9, y0 + cell_h // 2 - 11, text, text_color, scale=3)
+
+    c.text(left, top + plot_h + 38, legend, color=(45, 45, 45), scale=2)
+    c.write_png(path)
+
+
 def save_mpl(fig, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path.with_suffix(".pdf"), bbox_inches="tight")
@@ -805,7 +862,14 @@ def make_figures_matplotlib(full: dict, versions: dict) -> bool:
             "grid.alpha": 0.25,
             "axes.spines.top": False,
             "axes.spines.right": False,
-            "font.size": 10,
+            "font.size": 20,
+            "axes.titlesize": 21,
+            "axes.labelsize": 20,
+            "xtick.labelsize": 19,
+            "ytick.labelsize": 19,
+            "legend.fontsize": 19,
+            "lines.linewidth": 2.8,
+            "lines.markersize": 10,
             "legend.frameon": False,
         }
     )
@@ -914,14 +978,43 @@ def make_figures_matplotlib(full: dict, versions: dict) -> bool:
         save_mpl(fig, FIG_RES_DIR / f"benchmark_{bench.lower()}_tiempos_clases")
         plt.close(fig)
 
-    groups = [f"{cls}-{bench}" for cls in CLASSES for bench in BENCHES]
-    vals = z([speedup(full, "3.15t", bench, cls, 3, 32) for cls in CLASSES for bench in BENCHES])
-    fig, ax = plt.subplots(figsize=(11.5, 5.8))
-    ax.bar(groups, vals, color="#46965a")
-    ax.axhline(1.0, color="#333333", linewidth=1, linestyle="--")
-    ax.set_ylabel("Speedup a 32 hilos")
-    ax.set_title("Python 3.15t, modo 3: speedup a 32 hilos")
-    ax.tick_params(axis="x", rotation=45)
+    import numpy as np
+    from matplotlib.colors import TwoSlopeNorm
+
+    heatmap_data = np.array(
+        [[speedup(full, "3.15t", bench, cls, 3, 32) or float("nan") for bench in BENCHES] for cls in CLASSES],
+        dtype=float,
+    )
+    vmax = max(1.1, float(np.nanmax(heatmap_data)))
+    masked_heatmap = np.ma.masked_invalid(heatmap_data)
+    cmap = plt.get_cmap("RdYlGn").copy()
+    cmap.set_bad("#efefef")
+    fig, ax = plt.subplots(figsize=(9.6, 4.8))
+    im = ax.imshow(
+        masked_heatmap,
+        cmap=cmap,
+        norm=TwoSlopeNorm(vmin=0.0, vcenter=1.0, vmax=vmax),
+        aspect="auto",
+    )
+    ax.set_xticks(range(len(BENCHES)))
+    ax.set_xticklabels(BENCHES)
+    ax.set_yticks(range(len(CLASSES)))
+    ax.set_yticklabels([f"Clase {cls}" for cls in CLASSES])
+    ax.set_xlabel("Benchmark", fontsize=16)
+    ax.set_ylabel("Clase", fontsize=16)
+    ax.set_title("Python 3.15t, modo 3: speedup a 32 hilos", fontsize=18)
+    ax.tick_params(axis="both", labelsize=15)
+    for i, cls in enumerate(CLASSES):
+        for j, bench in enumerate(BENCHES):
+            v = heatmap_data[i, j]
+            if np.isnan(v):
+                ax.text(j, i, "---", ha="center", va="center", color="#555555", fontsize=14)
+                continue
+            text_color = "white" if v < 0.45 or v > 7.0 else "black"
+            ax.text(j, i, f"{v:.2f}x", ha="center", va="center", color=text_color, fontsize=14)
+    cbar = fig.colorbar(im, ax=ax, fraction=0.035, pad=0.04)
+    cbar.set_label("Speedup", fontsize=15)
+    cbar.ax.tick_params(labelsize=14)
     save_mpl(fig, FIG_RES_DIR / "mode3_speedup32_global")
     plt.close(fig)
 
@@ -1051,9 +1144,18 @@ def make_figures(full: dict, versions: dict) -> None:
             logy=True,
         )
 
-    groups = [f"{cls}-{bench}" for cls in CLASSES for bench in BENCHES]
-    bars = [("M3", [speedup(full, "3.15t", bench, cls, 3, 32) for cls in CLASSES for bench in BENCHES])]
-    grouped_bar(FIG_RES_DIR / "mode3_speedup32_global.png", "Python 3.15t modo 3: speedup a 32 hilos", groups, bars, "speedup", logy=False)
+    heatmap_values = [[speedup(full, "3.15t", bench, cls, 3, 32) for bench in BENCHES] for cls in CLASSES]
+    vmax = max(v for row in heatmap_values for v in row if v is not None)
+    canvas_heatmap(
+        FIG_RES_DIR / "mode3_speedup32_global.png",
+        "Python 3.15t modo 3: speedup a 32 hilos",
+        BENCHES,
+        [f"Clase {cls}" for cls in CLASSES],
+        heatmap_values,
+        lambda value_: heat_color_speedup(value_, vmax),
+        lambda value_: "---" if value_ is None else f"{value_:.2f}x",
+        "Rojo: peor que 1 hilo. Verde: speedup alto.",
+    )
 
     groups = [f"{cls}-{bench}" for cls in ["S", "W"] for bench in BENCHES]
     bars = [(py, [value(versions, py, bench, cls, 3, 32) for cls in ["S", "W"] for bench in BENCHES]) for py in PYS]

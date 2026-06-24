@@ -68,6 +68,9 @@ def build_profile(profile):
         tags = ["3.13t", "3.14t", "3.15t"]
         add_rows_interleaved_python(rows, tags, BENCHMARKS, ["S"], [2, 3], THREADS_COMPARE_EXTRA, 5, LONG_TIMEOUT)
         add_rows_interleaved_python(rows, tags, BENCHMARKS, ["W"], [2, 3], THREADS_COMPARE_EXTRA, 3, LONG_TIMEOUT)
+    elif profile == "versions_interpreted_s":
+        tags = ["3.13t", "3.14t", "3.15t"]
+        add_rows_interleaved_python(rows, tags, BENCHMARKS, ["S"], [0, 1], THREADS_FULL, 5, LONG_TIMEOUT)
     elif profile == "profile_versions_core":
         add_rows_interleaved_python(rows, ["3.14t", "3.15t"], ["EP", "FT"], ["W"], [3], [1, 8, 16, 32], 1, 7200)
         add_rows_interleaved_python(rows, ["3.13t", "3.14t", "3.15t"], ["CG", "IS", "MG"], ["W"], [3], [1, 8, 32], 1, 7200)
@@ -98,6 +101,7 @@ def main():
             "full315",
             "versions",
             "versions_extra_threads",
+            "versions_interpreted_s",
             "profile_versions_core",
             "profile_versions_is_retry",
             "profile_versions_mg_retry",

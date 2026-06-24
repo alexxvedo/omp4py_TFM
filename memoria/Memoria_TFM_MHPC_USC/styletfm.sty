@@ -6,6 +6,9 @@
 
 \RequirePackage{color}
 \RequirePackage{graphicx}
+\RequirePackage{subcaption}
+\RequirePackage{adjustbox}
+\RequirePackage{float}
 \RequirePackage[colorlinks]{hyperref}
 \RequirePackage{lettrine}
 
@@ -17,6 +20,33 @@
 \usepackage[hmargin={4cm,2.5cm},tmargin=4cm,bmargin=4cm]{geometry}
 
 \usepackage{libertine}
+\usepackage[scaled=0.82]{beramono}   % monoespaciado real y escalado para \texttt y verbatim
+\makeatletter
+\def\verbatim@font{\normalfont\ttfamily\small}  % bloques verbatim en cuerpo más pequeño
+\makeatother
+
+% Permitir cortar identificadores largos de código tras el guion bajo
+% (p. ej. \texttt{shift\_column\_indices\_compiled}) y absorber desbordes menores.
+\let\origunderscore\_
+\renewcommand{\_}{\origunderscore\allowbreak}
+\setlength{\emergencystretch}{2em}
+
+% Evitar líneas viudas/huérfanas (líneas sueltas al principio/fin de página)
+\widowpenalty=10000
+\clubpenalty=10000
+\displaywidowpenalty=10000
+
+% Colocación de flotantes: permitir que figuras/tablas compartan página con más
+% texto y reducir las páginas casi vacías dedicadas a un único flotante.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.75}
+\renewcommand{\dbltopfraction}{0.9}
+\renewcommand{\dblfloatpagefraction}{0.75}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
 
 \usepackage{fancyhdr}
 \usepackage[numbers,sort]{natbib} 

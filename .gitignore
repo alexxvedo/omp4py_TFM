@@ -22,3 +22,38 @@ results/ft3_20260526/analysis_summary.md
 
 .vscode/
 *_omp_d.py
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.idx
+*.ind
+*.ilg
+*.nav
+*.snm
+*.vrb
+
+# Tool outputs, drafts and personal files (no van al repo publico)
+.kilo/
+graphify-out/
+correo_*.txt
+2026_*_FGCS.pdf
+presentacion/
+presentacion_defensa/
+memoria/Memoria_TFM_MHPC_USC/presentacion/
+memoria/Memoria_TFM_MHPC_USC/partes_ai/
+memoria/Memoria_TFM_MHPC_USC/partes_ai_txt/
+memoria/Memoria_TFM_MHPC_USC/memtfm_corregida_tutor.pdf
+memoria/checklist_mejoras_memoria.md
+memoria/informe_revision_memoria_usc_omp4py.md
+memoria/revision_notas.md
+scripts/analysis/ai_local_check.py

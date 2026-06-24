@@ -51,6 +51,15 @@
         coordinación entre hilos (barreras, secciones críticas, reducciones)
         que no contribuye directamente al cómputo útil.
 
+  \item[Profiler de muestreo] Herramienta que observa periódicamente las pilas
+        de llamadas de los hilos de un proceso. En este trabajo se usa para
+        estimar qué fracción del tiempo paralelo cae en cómputo, espera o
+        inicialización.
+
+  \item[Profiler de trazado] Herramienta determinista que registra llamadas a
+        funciones y permite obtener recuentos exactos. En este trabajo se usa
+        para contar regiones paralelas, hilos creados y entradas en barrera.
+
   \item[Reducción] Operación que combina los valores parciales calculados por
         cada hilo en un único resultado escalar (suma, máximo, mínimo, etc.)
         al final de una región paralela.

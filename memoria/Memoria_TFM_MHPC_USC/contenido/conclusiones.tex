@@ -3,46 +3,44 @@
 
 \lettrine{E}{ste} trabajo ha adaptado cinco NAS Parallel Benchmarks al modelo
 de programación OMP4Py y los ha evaluado experimentalmente en Finisterrae~III
-con intérpretes Python \emph{free-threaded}. La evaluación cubre CG, EP, FT, IS
-y MG; las clases de problema S, W y A; los cuatro modos de ejecución cuando el
-coste lo permite; y configuraciones de 1, 2, 4, 8, 16 y 32~hilos. La campaña
+con intérpretes Python \emph{free-threaded}. La evaluación cubre los benchmarks
+CG, EP, FT, IS y MG en las clases de problema S, W y A, con los cuatro modos de
+ejecución cuando el coste lo permite y entre 1 y 32~hilos. La campaña
 principal con Python~3.15.0b1t incluye 630~ejecuciones. La campaña comparativa
-entre Python~3.13.13t, 3.14.4t y 3.15.0b1t añade 1440~ejecuciones. Todas las
-ejecuciones finales terminaron con verificación \texttt{SUCCESSFUL}.
+entre Python~3.13.13t, 3.14.4t y 3.15.0b1t añade 2340~ejecuciones, que cubren
+tanto los modos interpretados como los compilados. Todas las ejecuciones finales
+terminaron con verificación \texttt{SUCCESSFUL}.
 
 
 \section{Hallazgos principales}
 \label{sec:hallazgos}
 
-\paragraph{El port es funcional y cubre los caminos relevantes de OMP4Py.}
-La clase~S se ejecutó con los modos~0, 1, 2 y~3, validando los caminos
+\subsection{Cobertura funcional del port}
+El port es funcional y cubre los caminos relevantes de OMP4Py. La clase~S se
+ejecutó con los modos~0, 1, 2 y~3, validando los caminos
 interpretados y compilados. La clase~W se evaluó con los modos compilados~2 y
 3, y la clase~A con el modo~3. Esta estructura permite comprobar corrección sin
 dedicar recursos a configuraciones que ya son varios órdenes de magnitud más
 lentas en clases menores.
 
-\paragraph{El tipado Cython es el factor de rendimiento dominante.}
-El modo~3 reduce de forma muy marcada los tiempos frente al modo~2. En
-clase~S, la mejora con un hilo es de $125.77\times$ en CG, $29.39\times$ en
-EP, $15.26\times$ en FT y $324.00\times$ en MG. En clase~W, los factores son
-$135.42\times$ en CG, $29.45\times$ en EP, $15.89\times$ en FT,
-$184.67\times$ en IS y $440.51\times$ en MG. Por tanto, para estos benchmarks
-el tipado no es una optimización menor. Es la condición que convierte el código
-OMP4Py en una ejecución competitiva.
+\subsection{El tipado Cython como factor dominante}
+El tipado Cython es el factor de rendimiento dominante. En las clases S y W, el
+modo~3 mejora al modo~2 en todos los benchmarks medidos, con factores que van
+desde el orden de $15\times$ en FT hasta más de dos órdenes de magnitud en los
+casos más favorables. Por tanto, para estos benchmarks el tipado no es una
+optimización menor. Es la condición que convierte el código OMP4Py en una
+ejecución competitiva.
 
-\paragraph{Python~3.15t escala en EP y FT.}
+\subsection{Escalabilidad de EP y FT}
 La campaña principal obtiene speedups altos con Python~3.15.0b1t en los
-benchmarks con estructura más favorable. En clase~A, EP alcanza
-$10.50\times$ a 32~hilos y FT alcanza $14.03\times$ a 32~hilos, con un óptimo
-de $14.69\times$ en 16~hilos. En clase~W, EP llega a $9.90\times$ y FT a
-$8.00\times$ a 32~hilos. Estos resultados muestran que el port puede explotar
-paralelismo real cuando el kernel tiene suficiente trabajo independiente.
-Además, EP en modo~1 alcanza $29.16\times$ a 32~hilos en clase~S, una
-aceleración casi lineal sobre código interpretado que demuestra que la
-eliminación del GIL produce paralelismo real al nivel del propio Python,
-aunque sin valor práctico en tiempo absoluto frente al modo tipado.
+benchmarks con estructura más favorable. En clase~A, EP y FT superan
+$10\times$ de speedup, y FT alcanza su mejor punto con 16~hilos. Estos
+resultados muestran que el port puede explotar paralelismo real cuando el kernel
+tiene suficiente trabajo independiente. EP en modo~1 confirma además que la
+eliminación del GIL produce paralelismo real al nivel del propio Python, aunque
+esa ruta no sea competitiva en tiempo absoluto frente al modo tipado.
 
-\paragraph{CG, IS y MG siguen siendo los límites principales.}
+\subsection{Límites de CG, IS y MG}
 CG, IS y MG no obtienen escalabilidad sostenida en modo~3. CG empeora al
 aumentar hilos por el coste de reducciones, normas y barreras frecuentes. IS
 solo mejora de forma moderada con pocos hilos y pierde eficiencia a 32~hilos.
@@ -50,108 +48,122 @@ MG combina accesos intensivos a memoria, niveles de malla de distinta
 granularidad y sincronizaciones entre fases. En estos benchmarks, el tipado
 mejora el tiempo absoluto, pero no basta para convertir más hilos en speedup.
 
-\paragraph{La comparación entre versiones no muestra una regresión específica de Python~3.15t.}
-Con la configuración final, Python~3.13t, 3.14t y 3.15t escalan de forma muy
-parecida en EP y FT. En EP clase~W, los speedups a 32~hilos son
-$9.86\times$, $9.90\times$ y $9.90\times$ respectivamente. En FT clase~W, son
-$11.35\times$, $11.43\times$ y $11.57\times$. Las diferencias entre versiones
-son mucho menores que las diferencias entre modos de ejecución o entre
-benchmarks.
+\subsection{El tipado neutraliza la versión de Python}
+En los modos compilados, Python~3.13t, 3.14t y 3.15t escalan casi igual, así que
+la versión no cambia la conclusión práctica. En los modos interpretados el efecto
+sí es grande. Python~3.13t escala mucho peor al aumentar los hilos en CG, FT, IS y
+MG, hasta varias veces más lento a 32~hilos, y solo EP queda al margen por no
+compartir apenas estado entre hilos. El tipado del modo~3 elimina esa penalización, porque saca el
+bucle caliente del espacio de objetos Python. Donde la versión influye,
+Python~3.15t es la más rápida. Como los modos compilados son los únicos con
+tiempos prácticos, esta diferencia no cambia la conclusión principal del trabajo,
+pero confirma la mejora de escalado de las builds \emph{free-threaded} posteriores
+a la 3.13t.
 
-\paragraph{La afinidad de hilos fue un factor experimental crítico.}
-Las ejecuciones preliminares con variables de afinidad de OpenMP fijadas
-producían una serialización aparente en Python~3.15t. Al eliminar
-\texttt{OMP\_PROC\_BIND}, \texttt{OMP\_PLACES} y \texttt{GOMP\_CPU\_AFFINITY}
-por defecto en las campañas finales, EP y FT pasaron a escalar correctamente.
-Esta corrección cambia la interpretación del trabajo: el problema inicial no
-era una incapacidad general de Python~3.15t ni un fallo intrínseco del port,
-sino una configuración de ejecución que condicionaba la planificación de hilos.
+\subsection{La afinidad del entorno como factor crítico}
+La afinidad del entorno fue un factor experimental crítico, aunque OMP4Py no
+implementa la fijación de hilos a núcleos. Las ejecuciones preliminares
+heredaban variables de afinidad de OpenMP del entorno, y eso producía una
+serialización aparente en Python~3.15t. El mecanismo, detallado en la
+Sección~\ref{sec:profiling-afinidad}, es indirecto. NumPy carga
+\texttt{libgomp}, que ante esas variables restringe la máscara de CPU del
+proceso a un solo núcleo durante el \texttt{import}, y los hilos
+\emph{free-threaded} heredan esa máscara. Al eliminar \texttt{OMP\_PROC\_BIND},
+\texttt{OMP\_PLACES} y \texttt{GOMP\_CPU\_AFFINITY} por defecto en las campañas
+finales, EP y FT pasaron a escalar correctamente. Esta corrección cambia la
+interpretación del trabajo. El problema inicial no era una incapacidad de
+Python~3.15t ni un fallo del port, sino una restricción de la planificación
+impuesta desde fuera de la biblioteca.
 
-\paragraph{El profiling separa escalabilidad real de paralelismo ineficiente.}
-Las mediciones con \texttt{perf stat} muestran que EP y FT usan varias CPUs y
+\subsection{Escalabilidad real frente a paralelismo ineficiente}
+El profiling distingue la escalabilidad real del paralelismo ineficiente. Las
+mediciones con \texttt{perf stat} muestran que EP y FT usan varias CPUs y
 reducen el tiempo. En FT, el IPC y los fallos de caché explican que el óptimo
 aparezca en 16~hilos en lugar de 32. En CG y MG, el proceso también puede usar
 varias CPUs, pero el IPC cae y el tiempo empeora. Por tanto, los malos speedups
-no tienen una única causa: en unos casos el kernel escala, y en otros el
+no tienen una única causa. En unos casos el kernel escala, y en otros el
 paralelismo existe pero la sincronización o la memoria dominan. El sistema de
-muestreo de Python~3.15 cuantifica ese coste desde el nivel del intérprete: la
+muestreo de Python~3.15 cuantifica ese coste desde el nivel del intérprete. La
 fracción de tiempo paralelo en espera de barreras y reducciones crece con el
-número de hilos (hasta el 20--26\% con 8--16~hilos en CG, FT y MG) y revela que
-CG, FT y MG crean y destruyen un equipo de hilos por región paralela, frente al
-equipo persistente de EP.
+número de hilos en los puntos medidos, y muestra que CG, FT, IS y MG crean y
+destruyen equipos entre regiones paralelas, frente al equipo persistente de EP.
+El trazado de Python~3.15 en Finisterrae~III confirma el gradiente estructural.
+EP crea un único equipo, mientras que CG crea miles de hilos y decenas de miles
+de entradas en barrera en una ejecución de clase~S.
 
 
 \section{Limitaciones}
 \label{sec:limitaciones}
 
-La primera limitación es que la comparación entre versiones no incluye la
-clase~A. La decisión fue deliberada para contener el uso del cluster. La campaña
-principal demuestra escalabilidad de EP y FT en clase~A con Python~3.15t, pero
-no mide esa misma clase con Python~3.13t y Python~3.14t.
-
-La segunda limitación es que \texttt{perf stat} mide el proceso completo, no
-solo la ventana temporizada por NAS. En benchmarks muy cortos, especialmente IS,
-los contadores deben interpretarse como apoyo diagnóstico y no como medición
-exacta del kernel.
-
-La tercera limitación afecta a las clases pequeñas. Algunos tiempos de clase~S,
-especialmente en IS y MG, aparecen como 0.00~s o 0.01~s por la resolución de la
-salida NAS. Esos valores sirven para confirmar corrección y tiempos bajos, pero
-no para calcular speedups precisos.
+Las amenazas a la validez se agrupan en la
+Sección~\ref{sec:amenazas-validez} y se concretan después en la
+Sección~\ref{sec:resultados-limitaciones}.
+La primera limitación es experimental. La comparación entre versiones no incluye
+clase~A, una decisión deliberada para contener el uso del cluster. La segunda es
+de medida. La salida NAS redondea a dos decimales, de modo que algunos tiempos de
+clase~S en IS y MG sirven para confirmar corrección y orden de magnitud, pero no
+para ratios finos. La tercera afecta al profiling. \texttt{perf stat} mide el
+proceso completo, y el profiler de Python~3.15 se usa como diagnóstico
+estructural en modo~1 sobre clase~S. El trazado completa los cinco benchmarks y
+el muestreo aporta los puntos válidos de la campaña. La cuarta es de alcance.
+Los resultados caracterizan los cinco benchmarks adaptados, los nodos
+\texttt{clk} y el rango de 1 a 32~hilos, pero no agotan otros tamaños,
+arquitecturas ni políticas de afinidad.
 
 
 \section{Trabajo futuro}
 \label{sec:trabajo-futuro}
 
-\paragraph{Instrumentación interna de OMP4Py.}
-El muestreo con el profiler de Python~3.15 ya proporciona una primera atribución
-del tiempo de sincronización y del número de equipos de hilos por función, pero
-lo hace desde fuera del runtime y sobre el modo interpretado. El siguiente paso
-es integrar esa instrumentación dentro de OMP4Py, por región paralela y para los
-modos compilados, de modo que se mida directamente cuántos hilos entran en cada
-región y cuánto tiempo pasan en trabajo útil frente a barreras, reducciones,
-secciones críticas o espera activa, y reproducirla sobre Finisterrae~III cuando
-el intérprete \emph{free-threaded} permita adjuntar el muestreador.
+\subsection{Instrumentación y campañas complementarias}
+La prioridad inmediata es cerrar la brecha entre diagnóstico y medición final.
+El muestreo y el trazado de Python~3.15 ya identifican espera en barreras,
+reducciones y creación de equipos, pero lo hacen desde fuera del runtime y sobre
+modo~1. La siguiente campaña debería instrumentar OMP4Py por región paralela y en
+los modos compilados, midiendo directamente tiempo útil, espera, reducciones y
+creación de hilos. También convendría extender el muestreo a una matriz más fina
+y a modos compilados, para ampliar la cobertura de plataforma, modo y
+herramienta.
 
-\paragraph{Campaña de clase A selectiva para versiones.}
-Una campaña adicional centrada en EP y FT, modo~3, clase~A y Python~3.13t/3.14t
-permitiría comprobar si los speedups observados en S y W se mantienen con la
-carga mayor. No sería necesario repetir toda la matriz experimental.
+También queda una campaña selectiva de clase~A para versiones. No es necesario
+repetir toda la matriz. Bastaría con EP y FT, modo~3, Python~3.13t y 3.14t, para
+confirmar si los speedups de clase~W se mantienen con la carga mayor. Una segunda
+campaña fina alrededor de los óptimos de FT e IS permitiría localizar mejor el
+mejor número de hilos que el barrido por potencias de dos.
 
-\paragraph{Optimización de sincronizaciones y reducciones.}
-CG, IS y MG apuntan a límites asociados a reducciones, accesos irregulares,
-histogramas, barreras y granularidad desigual. El desarrollo futuro de OMP4Py
-debería centrarse en reducir el coste de esas operaciones y en mejorar la
-distribución de trabajo en regiones con tamaño variable.
+\subsection{Mejoras del runtime}
+El candidato principal de mejora es reutilizar el equipo de hilos. El runtime
+actual crea y destruye un equipo por región paralela, y en kernels con muchas
+regiones cortas, como CG o MG, ese coste aparece miles de veces. Un pool
+persistente eliminaría parte de ese sobrecoste sin obligar al usuario a envolver
+manualmente el cómputo en una región paralela grande.
 
-\paragraph{Actuaciones con mayor probabilidad de mejora.}
-Las mejoras más útiles serían las que reduzcan el coste de coordinación dentro
-del runtime. En CG, conviene optimizar reducciones y barreras, o agrupar más
-trabajo por región paralela para amortizar la sincronización. En IS, sería útil
-paralelizar de forma más eficiente los prefijos acumulados y reducir el coste de
-los histogramas locales. En MG, la línea más prometedora es adaptar la
-distribución de trabajo al tamaño de cada nivel de malla, evitando crear equipos
-grandes de hilos cuando el nivel grueso solo ofrece unas pocas iteraciones
-útiles. En todos los casos, mantener los bucles críticos completamente
-compilables por Cython es condición necesaria: si queda una llamada Python dentro
-del kernel, el tiempo absoluto vuelve a estar dominado por el intérprete.
+La segunda línea es aligerar barreras y reducciones. La espera medida en
+\texttt{threading.Condition.wait} llega a porcentajes relevantes con varios
+hilos, y cada reducción escalar añade sincronización. Una barrera más ligera en
+el runtime nativo y reducciones que eviten barreras completas reducirían el coste
+de coordinación que limita CG, FT y MG.
 
-\paragraph{Actuaciones poco prometedoras.}
-La campaña también descarta varias explicaciones simples. Cambiar únicamente de
-Python~3.13t a 3.14t o 3.15t no resuelve CG, IS ni MG, porque las tres versiones
-muestran curvas muy parecidas cuando la afinidad está corregida. Aumentar el
-número de hilos tampoco ayuda por sí solo: en CG y MG empeora el tiempo, y en IS
-solo aporta una mejora limitada con pocos hilos. El modo~2 no es una alternativa
-práctica aunque en algunos casos muestre speedups relativos altos, porque sus
-tiempos absolutos siguen siendo muy superiores a los del modo~3. Por último,
-fijar afinidad de OpenMP sin control puede distorsionar la medida. Cualquier
-experimento con pinning debe documentarse y compararse frente a una ejecución sin
-afinidad explícita.
+\subsection{Mejoras por benchmark}
+Las actuaciones con más probabilidad de impacto no son cambiar únicamente de
+versión de Python ni aumentar hilos sin modificar el runtime. La comparación
+entre 3.13t, 3.14t y 3.15t muestra curvas muy parecidas cuando la afinidad está
+corregida. En CG, la línea útil es agrupar más trabajo entre reducciones y
+optimizar barreras. En IS, paralelizar mejor los prefijos acumulados y reducir el
+coste de los histogramas por hilo. En MG, adaptar la distribución de trabajo al
+tamaño de cada nivel de malla para no activar equipos grandes en niveles con muy
+pocas iteraciones útiles. En todos los casos, mantener los bucles críticos
+completamente compilables por Cython sigue siendo una condición necesaria.
 
-\paragraph{Extensión a BT, SP y LU.}
-La incorporación de paralelismo OMP4Py en BT, SP y LU completaría la cobertura
-de los NAS Parallel Benchmarks y permitiría evaluar patrones algorítmicos con
-dependencias espaciales más complejas.
+\subsection{Extensión a BT, SP y LU}
+Completar la cobertura con BT, SP y LU permitiría evaluar patrones con
+dependencias espaciales más complejas. BT y SP son paralelizables con
+\texttt{parallel for} y quedaron fuera por tiempo. LU requiere más que un port
+directo. Su barrido SSOR necesita sincronización en \emph{wavefront}, que en
+OpenMP se expresa con \texttt{ordered}, \texttt{flush}, \texttt{atomic} o
+dependencias entre tareas. Ninguno de esos mecanismos está hoy disponible en las
+directivas usadas de OMP4Py (Sección~\ref{sec:benchmarks-adaptados}). Incorporar
+alguno de ellos sería una mejora de la biblioteca, no solo una extensión de la
+campaña de benchmarks.
 
 
 \section{Valoración global}
@@ -159,22 +171,22 @@ dependencias espaciales más complejas.
 
 OMP4Py permite expresar paralelismo de estilo OpenMP en Python y producir
 ejecuciones correctas sobre benchmarks numéricos no triviales. El resultado más
-sólido es la combinación de corrección funcional y mejora por tipado: el
-modo~3 reduce los tiempos hasta en un factor de $440\times$ y hace viables
-cargas que en modo~2 serían demasiado costosas.
+sólido es la combinación de corrección funcional y mejora por tipado. El
+modo~3 reduce los tiempos en más de dos órdenes de magnitud en los casos más
+favorables y hace viables cargas que en modo~2 serían demasiado costosas.
 
 El rendimiento paralelo es positivo, pero selectivo. EP y FT muestran speedups
-altos con Python~3.15t y se comportan de forma similar en Python~3.13t y
-Python~3.14t. CG, IS y MG no escalan bien, incluso cuando el código está tipado
-y verificado. Por tanto, la conclusión final no es que OMP4Py escale o no
-escale de forma uniforme, sino que su utilidad práctica depende de la
-combinación entre tipado Cython, estructura del kernel, configuración de
-afinidad y eficiencia del runtime.
+altos con Python~3.15t y rinden parecido en Python~3.13t y Python~3.14t. CG, IS
+y MG no escalan bien, ni siquiera con el código tipado y verificado. La utilidad
+práctica de OMP4Py no es uniforme. Depende de la combinación entre tipado Cython,
+estructura del kernel, configuración de afinidad y eficiencia del runtime.
 
 El valor principal del trabajo es haber portado benchmarks completos, medido sus
-caminos de ejecución y separado varios efectos que podrían confundirse:
+caminos de ejecución y separado varios efectos que podrían confundirse,
 corrección funcional, mejora por compilación, mejora por tipado, escalabilidad
 real, problemas de configuración de entorno y límites propios de cada
 benchmark. Esa separación deja una base experimental clara para continuar el
 desarrollo de OMP4Py y para evaluar futuras versiones de Python
-\emph{free-threaded}.
+\emph{free-threaded}. La contribución central no es afirmar que OMP4Py escala
+siempre, sino delimitar cuándo escala, cuándo no, y qué parte corresponde al
+runtime.

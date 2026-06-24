@@ -3,9 +3,14 @@
 
 El capítulo anterior muestra que, en la campaña principal con Python~3.15t, el
 modo~3 de OMP4Py produce tiempos competitivos y escala en EP y FT, mientras que
-CG, IS y MG presentan límites de paralelización. Este capítulo
-estudia si ese comportamiento depende de la versión concreta del intérprete
-\emph{free-threaded}.
+CG, IS y MG presentan límites de paralelización. Este capítulo estudia si ese
+comportamiento depende de la versión concreta del intérprete
+\emph{free-threaded}, y recorre para ello los cuatro modos de ejecución. La
+respuesta tiene dos caras. En los modos interpretados la versión importa mucho,
+porque la primera build \emph{free-threaded}, la 3.13t, escala bastante peor al
+aumentar los hilos. En los modos compilados esa diferencia desaparece. Por eso el
+capítulo arranca por los modos interpretados, donde el efecto es mayor, y después
+comprueba que el tipado lo anula.
 
 La comparación cubre Python~3.13.13t, Python~3.14.4t y Python~3.15.0b1t,
 todas compiladas con el GIL desactivado. Las campañas finales se ejecutaron con
@@ -21,366 +26,133 @@ su ABI \emph{free-threaded}.
 
 La campaña de comparación entre versiones se diseñó como un subconjunto de la
 campaña principal, pero manteniendo todas las potencias de dos hasta 32~hilos.
-Se ejecutaron CG, EP, FT, IS y MG, las clases~S y~W, los modos compilados~2 y
-3, y los recuentos de hilos 1, 2, 4, 8, 16 y~32. La clase~S se ejecutó con
-cinco repeticiones por combinación y la clase~W con tres repeticiones. La
-campaña completa contiene 1440~ejecuciones y todas finalizaron con verificación
-\texttt{SUCCESSFUL}.
+Se ejecutaron CG, EP, FT, IS y MG con los recuentos de hilos 1, 2, 4, 8, 16
+y~32. Los modos compilados~2 y~3 se midieron en las clases~S y~W, y los modos
+interpretados~0 y~1 en la clase~S, el único tamaño donde el código no compilado
+termina en un tiempo razonable. La clase~S se ejecutó con cinco repeticiones por
+combinación y la clase~W con tres. La campaña completa contiene
+2340~ejecuciones, 1440 en los modos compilados y 900 en los interpretados, y
+todas finalizaron con verificación \texttt{SUCCESSFUL}.
 
-No se incluyó la clase~A porque el coste habría multiplicado el uso del
-cluster. La clase~A ya se evaluó con Python~3.15t en la campaña principal. La
-comparación entre versiones se centra en observar si las tendencias de S y W
-cambian al modificar el intérprete.
-
-Más allá del coste de cluster, hay una razón de fondo para no esperar
-diferencias en clase~A. En modo~3, el cómputo de cada kernel se ejecuta como
-código C nativo, ajeno al intérprete, de modo que la versión de Python solo
-puede influir a través del coste de coordinación paralela: la creación y
-destrucción de equipos de hilos, las barreras, las reducciones y el conteo de
-referencias sobre los arrays compartidos en las fronteras de cada región. Al
-pasar a una clase mayor crece el trabajo útil dentro de cada región, que es la
-parte independiente del intérprete, mientras que esa coordinación se mantiene en
-el mismo orden. La fracción sensible a la versión es por tanto menor en clase~A
-que en S y~W. Las clases S y~W ya miden esa coordinación entre las tres
-versiones (incluidos los benchmarks con más rotación de equipos, como CG y MG) y
-la encuentran equivalente.
-
-Al igual que en el resto de la memoria, se usa el mejor tiempo NAS entre las
-repeticiones válidas. Los tiempos externos del proceso se conservan en los
-registros, pero no se emplean para comparar rendimiento porque incluyen costes
-de arranque, importación y compilación.
+No se incluyó la clase~A porque el coste habría multiplicado el uso del cluster.
+La clase~A ya se evaluó con Python~3.15t en la campaña principal, y esta campaña
+se centra en comprobar si las tendencias de S y W cambian al modificar el
+intérprete. Como en el resto de la memoria, se usa el mejor tiempo NAS entre las
+repeticiones válidas.
 
 
-\section{Rendimiento secuencial en modo 3}
-\label{sec:versiones-secuencial}
+\section{Efecto de la versión en los modos interpretados}
+\label{sec:versiones-interpretado}
 
-El primer paso es comparar el rendimiento con un hilo. Esta medida elimina el
-efecto de planificación entre hilos y permite observar si una versión introduce
-una ventaja secuencial clara en los kernels compilados.\footnote{Los tiempos
-absolutos de esta campaña pueden diferir ligeramente de los del
-Capítulo~\ref{chap:resultados} para la misma combinación (por ejemplo, FT
-clase~W con un hilo aparece como 4.86~s aquí y 5.04~s en la campaña principal):
-son campañas independientes y la diferencia refleja la variabilidad entre
-ejecuciones del clúster. Todas las comparaciones de speedup se realizan siempre
-dentro de la misma campaña.}
+La comparación empieza por los modos~0 y~1, donde los kernels se ejecutan como
+Python interpretado y es el propio intérprete el que realiza el trabajo. La
+Tabla~\ref{tab:versiones-interpretado-completo} recoge el tiempo NAS de los cinco
+benchmarks en los dos modos interpretados, para las tres versiones y todos los
+recuentos de hilos, y la Figura~\ref{fig:versiones-interpretado}, al final de la
+sección, lo muestra de forma gráfica.
 
-\input{contenido/tablas/versiones_t1_mode3}
+\input{contenido/tablas/versiones_interpretado_completo}
 
-La Tabla~\ref{tab:versiones-t1-mode3} muestra que las diferencias con un hilo
-son pequeñas en la mayoría de combinaciones. EP es prácticamente idéntico: en
-clase~W, las tres versiones se sitúan entre 2.86~s y 2.87~s. CG clase~W oscila
-entre 0.76~s y 0.78~s. FT favorece ligeramente a Python~3.13t, con 4.54~s en
-clase~W frente a 4.80~s en 3.14t y 4.86~s en 3.15t.
+Con un solo hilo, CG, IS y MG quedan casi idénticos entre versiones, porque su
+cómputo se apoya en NumPy y la ruta caliente corre en C. Los que se separan son
+EP y FT, los dos kernels con más trabajo en el propio intérprete. En EP,
+Python~3.13t resulta entre un 12\% y un 17\% más lento que 3.14t y 3.15t,
+coherente con que la 3.13t desactivara el intérprete especializador por no ser
+todavía seguro sin GIL, función que 3.14t recuperó. En FT el margen es aún mayor,
+en torno al 20\%, y con otro orden, porque la más lenta es 3.14t.
 
-MG clase~W es el caso con más variación relativa: Python~3.13t tarda 0.44~s,
-Python~3.15t 0.45~s y Python~3.14t 0.62~s. Aun así, las diferencias de un hilo
-no explican por sí solas la escalabilidad posterior. En EP y FT, donde los
-speedups son altos, los tiempos secuenciales son muy parecidos entre versiones.
+El cuadro cambia por completo al aumentar el número de hilos
+(Figura~\ref{fig:versiones-interpretado}). En CG, FT, IS y MG, Python~3.13t se
+degrada mucho más que 3.14t y 3.15t, y la brecha crece con cada duplicación de
+hilos. CG en modo~1 pasa de 18.3~s con un hilo, donde las tres versiones
+coinciden, a 100.7~s con 32~hilos en 3.13t frente a 16.6~s en 3.15t, seis veces
+más. MG llega a ser siete veces más lento en 3.13t a 32~hilos (10.6~s frente a
+1.4~s), IS unas cuatro veces y FT algo más del doble. Con un hilo la diferencia no
+existe, con 8~hilos ya es de dos a tres veces, y con 32 alcanza de cuatro a siete
+veces. Es un efecto sistemático, no ruido, porque se repite en los dos modos
+interpretados y en las cinco repeticiones de cada punto.
 
-Los tiempos de IS y MG en clase~S deben interpretarse con cautela. IS aparece
-como 0.00~s con un hilo en las tres versiones y MG como 0.01~s. Estos valores
-confirman que los kernels son muy pequeños en clase~S, pero no proporcionan
-precisión suficiente para analizar diferencias finas.
+EP es la única excepción. Al ser \emph{embarrassingly parallel}, sus hilos apenas
+comparten estado, así que no sufre ese coste y 3.13t escala con normalidad. Ahí
+el único matiz es una ligera regresión de 3.14t a 16 y 32~hilos, que 3.15t
+corrige, de modo que 3.15t vuelve a ser la versión más rápida.
 
-\input{contenido/tablas/versiones_mode3_tiempos_completos}
+La causa está en el coste de coordinación del intérprete sin GIL. Cuando el bucle
+caliente manipula objetos Python desde muchos hilos, la primera build
+\emph{free-threaded} paga un sobrecoste alto de gestión de referencias y
+contención de memoria que 3.14t y 3.15t redujeron. EP no lo nota porque casi no
+comparte datos entre hilos. Este es, con diferencia, el mayor efecto de versión
+de todo el estudio, y vive por entero en la ejecución interpretada. La sección
+siguiente comprueba que, al activar el tipado de los modos compilados, esta
+diferencia desaparece.
 
-La Tabla~\ref{tab:versiones-mode3-tiempos-completos} recoge los tiempos de
-modo~3 para todos los recuentos de hilos. Esta tabla es la base para analizar
-las curvas de speedup y los óptimos de cada combinación.
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.92\textwidth]{imagenes/versiones/interpretado_tiempos_versiones}
+\caption{Tiempo NAS por número de hilos en modo~1 interpretado, clase~S, para
+Python~3.13t, 3.14t y 3.15t. En CG, FT, IS y MG la 3.13t se dispara al aumentar
+los hilos, mientras que EP, \emph{embarrassingly parallel}, mantiene las tres
+versiones juntas.}
+\label{fig:versiones-interpretado}
+\end{figure}
 
+\newpage
 
-\section{Efecto del tipado Cython entre versiones}
-\label{sec:versiones-tipado}
+\section{El tipado neutraliza el efecto de versión}
+\label{sec:versiones-compilado}
 
-Antes de estudiar la escalabilidad conviene comprobar si el efecto del modo~3
-se mantiene en todas las versiones. La Tabla~\ref{tab:versiones-tipado-t1}
-compara modo~2 y modo~3 con un hilo para cada versión, clase y benchmark.
+La pregunta natural es si esa fuerte dependencia de versión sobrevive al tipado.
+La respuesta es que no. En los modos compilados el bucle caliente deja de
+manipular objetos Python y pasa a código Cython nativo, de modo que la contención
+que penalizaba a la 3.13t desaparece.
+
+El contraste es inmediato. En CG clase~S a 32~hilos, la ejecución interpretada
+daba unos 100~s en 3.13t frente a 16~s en 3.15t, mientras que en modo~3 las tres
+versiones quedan en torno a 0.9~s. El mismo kernel que separaba a las versiones
+por un factor de seis pasa a ejecutarse en un tiempo casi idéntico en las tres. El
+efecto de versión no se atenúa, se anula.
 
 \input{contenido/tablas/versiones_tipado_t1}
 
-El resultado es estable: el modo~3 domina al modo~2 en las tres versiones. En
-clase~W, CG mejora entre $120.16\times$ y $135.33\times$, MG entre
-$303.19\times$ y $432.18\times$, EP alrededor de $25.55\times$--$29.53\times$
-y FT entre $16.64\times$ y $19.45\times$. IS también presenta factores por
-encima de $160\times$ en W.
+El tipado domina cualquier diferencia de versión. La
+Tabla~\ref{tab:versiones-tipado-t1} compara modo~2 y modo~3 con un hilo. El
+modo~3 mejora al modo~2 entre $15\times$ y más de $400\times$ según el benchmark,
+y ese factor es prácticamente el mismo en Python~3.13t, 3.14t y 3.15t. El salto de
+rendimiento relevante lo da el tipado, no la versión del intérprete.
 
-Esta comparación separa dos fenómenos. El primero es el coste de ejecutar código
-compilado sin tipos explícitos, alto en Python~3.13t, 3.14t y 3.15t. El segundo
-es la escalabilidad entre hilos, que depende además de la estructura del
-benchmark y del runtime. El modo~3 es condición necesaria para obtener buenos
-tiempos absolutos, pero no garantiza que todos los kernels escalen.
-
-
-\section{Escalabilidad en modo 3}
-\label{sec:versiones-escalabilidad}
-
-La Tabla~\ref{tab:versiones-speedup32-mode3} compara el speedup a 32~hilos en
-modo~3. La Tabla~\ref{tab:versiones-mode3-speedups-completos} extiende la
-comparación a todos los recuentos de hilos medidos.
-
-\input{contenido/tablas/versiones_speedup32_mode3}
-
-\input{contenido/tablas/versiones_mode3_speedups_completos}
-
-\begin{figure}[htbp]
+\begin{figure}[tbp]
 \centering
-\includegraphics[width=\textwidth]{imagenes/versiones/mode3_speedup32_versiones}
-\caption{Speedup a 32 hilos en modo~3 para Python~3.13t, 3.14t y 3.15t.}
-\label{fig:versiones-speedup32}
+\includegraphics[width=0.92\textwidth]{imagenes/versiones/compilado_tiempos_versiones}
+\caption{Tiempo NAS por número de hilos en modo~3 compilado, clase~W, para
+Python~3.13t, 3.14t y 3.15t. Las tres versiones se superponen en todos los
+benchmarks, en claro contraste con la divergencia del modo interpretado
+(Figura~\ref{fig:versiones-interpretado}).}
+\label{fig:versiones-compilado}
 \end{figure}
 
-El patrón principal es que EP y FT escalan en las tres versiones. En EP
-clase~W, los speedups a 32~hilos son $9.86\times$,
-$9.90\times$ y $9.90\times$ para Python~3.13t, 3.14t y 3.15t. En FT clase~W,
-son $11.35\times$, $11.43\times$ y $11.57\times$. En clase~S se observa la
-misma tendencia, con speedups alrededor de $9\times$--$10\times$.
-
-CG, IS y MG no muestran escalabilidad fuerte. CG cae a aproximadamente
-$0.13\times$--$0.14\times$ a 32~hilos en S y W. IS clase~W queda en
-$0.50\times$ en las tres versiones, y MG clase~W se mueve entre $0.58\times$ y
-$0.87\times$. La similitud entre versiones indica que, para estos benchmarks,
-el límite principal está en la estructura del kernel o en la forma en que el
-runtime ejecuta sus regiones paralelas, no en una regresión específica de una
-versión de Python.
-
-Esta lectura corrige la interpretación de las campañas preliminares. Antes de
-eliminar la afinidad explícita de OpenMP, Python~3.15t parecía no escalar en EP
-y FT. Las campañas finales muestran que ese comportamiento no era una propiedad
-intrínseca del intérprete ni del port, sino un efecto del entorno de ejecución.
+Ya en modo~3, las tres versiones se comportan igual en todo el rango de hilos. La
+Figura~\ref{fig:versiones-compilado} sigue el tiempo NAS por número de hilos en
+cada benchmark, y las tres curvas se superponen casi exactamente. Sea cual sea la
+forma de la curva, la fija la estructura del kernel y no la versión del
+intérprete. El Anexo~\ref{anexo:tablas-versiones} recoge los tiempos y speedups
+completos por número de hilos, los óptimos de cada combinación y las curvas por
+benchmark\footnote{Los tiempos absolutos de esta campaña pueden
+diferir ligeramente de los del Capítulo~\ref{chap:resultados} para la misma
+combinación. Son campañas independientes y la diferencia refleja la variabilidad
+entre ejecuciones del clúster.}
 
 
-\section{Curvas por benchmark}
-\label{sec:versiones-curvas}
-
-Las Figuras~\ref{fig:versiones-ep-s}, \ref{fig:versiones-ep-w},
-\ref{fig:versiones-ft-s} y \ref{fig:versiones-ft-w} muestran las curvas de
-speedup de EP y FT con 1, 2, 4, 8, 16 y~32 hilos. Las
-Figuras~\ref{fig:versiones-cg-s}--\ref{fig:versiones-mg-w} completan la misma
-vista para CG, IS y MG.
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{imagenes/versiones/ep_s_speedup_versiones}
-\caption{EP clase~S, modo~3: speedup por versión de Python.}
-\label{fig:versiones-ep-s}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{imagenes/versiones/ep_w_speedup_versiones}
-\caption{EP clase~W, modo~3: speedup por versión de Python.}
-\label{fig:versiones-ep-w}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{imagenes/versiones/ft_s_speedup_versiones}
-\caption{FT clase~S, modo~3: speedup por versión de Python.}
-\label{fig:versiones-ft-s}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{imagenes/versiones/ft_w_speedup_versiones}
-\caption{FT clase~W, modo~3: speedup por versión de Python.}
-\label{fig:versiones-ft-w}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{imagenes/versiones/cg_s_speedup_versiones}
-\caption{CG clase~S, modo~3: speedup por versión de Python.}
-\label{fig:versiones-cg-s}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{imagenes/versiones/cg_w_speedup_versiones}
-\caption{CG clase~W, modo~3: speedup por versión de Python.}
-\label{fig:versiones-cg-w}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{imagenes/versiones/is_s_tiempos_versiones}
-\caption{IS clase~S, modo~3: tiempo NAS por versión de Python. El speedup no
-es fiable porque el tiempo con un hilo aparece redondeado a 0.00~s.}
-\label{fig:versiones-is-s}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{imagenes/versiones/is_w_speedup_versiones}
-\caption{IS clase~W, modo~3: speedup por versión de Python.}
-\label{fig:versiones-is-w}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{imagenes/versiones/mg_s_speedup_versiones}
-\caption{MG clase~S, modo~3: speedup por versión de Python.}
-\label{fig:versiones-mg-s}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{imagenes/versiones/mg_w_speedup_versiones}
-\caption{MG clase~W, modo~3: speedup por versión de Python.}
-\label{fig:versiones-mg-w}
-\end{figure}
-
-En EP, las tres versiones siguen curvas casi idénticas. La aceleración es casi
-lineal hasta 8~hilos y se estabiliza después. En clase~W, el mejor punto medido
-aparece en 32~hilos para las tres versiones, con tiempos de 0.29~s. El límite
-no parece estar en la versión del intérprete, sino en el coste fijo de la
-región paralela y en la eficiencia del runtime al aumentar el equipo de hilos.
-
-FT también escala en las tres versiones, pero su punto óptimo aparece antes.
-En clase~W, las tres versiones alcanzan el mejor tiempo con 16~hilos: 0.38~s
-en Python~3.13t, 0.40~s en 3.14t y 0.41~s en 3.15t. Con 32~hilos el tiempo
-sube ligeramente. Esto es coherente con la estructura de la FFT, que combina
-cómputo, accesos a memoria y sincronizaciones entre fases.
-
-Las curvas de CG, IS y MG siguen el patrón contrario. En CG, añadir hilos
-degrada el rendimiento en las tres versiones y en las dos clases. En IS, la
-clase~W mantiene una mejora solo con pocos hilos y cae a 32~hilos. En MG, la
-clase~S queda dominada por overhead y la clase~W no consigue speedup sostenido.
-La comparación visual refuerza que la versión de Python no cambia la forma
-básica de estas tres curvas.
-
-\input{contenido/tablas/versiones_mode3_optimos}
-
-La Tabla~\ref{tab:versiones-mode3-optimos} resume el mejor número de hilos. EP
-tiende a favorecer 32~hilos, FT 16~hilos, IS pocos hilos y CG/MG un hilo. La
-versión de Python desplaza ligeramente algunos tiempos, pero no altera el patrón
-de cada benchmark.
-
-
-\section{Tiempos absolutos con 32 hilos}
-\label{sec:versiones-t32}
-
-El speedup describe la evolución dentro de una misma versión, pero no indica
-qué versión es más rápida en tiempo absoluto. La Tabla~\ref{tab:versiones-t32-mode3}
-muestra los tiempos con 32~hilos en modo~3.
-
-\input{contenido/tablas/versiones_t32_mode3}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=\textwidth]{imagenes/versiones/mode3_t32_versiones}
-\caption{Tiempo NAS con 32 hilos en modo~3 para las tres versiones de Python.
-El eje vertical usa escala logarítmica.}
-\label{fig:versiones-t32}
-\end{figure}
-
-Las diferencias absolutas a 32~hilos son pequeñas en EP y FT. En EP clase~W,
-las tres versiones reportan 0.29~s. En FT clase~W, Python~3.13t obtiene 0.40~s
-y Python~3.14t/3.15t 0.42~s. Estos márgenes son mucho menores que los factores
-observados entre modos~2 y~3, y deben interpretarse como diferencias de segundo
-orden dentro del mismo patrón de escalabilidad.
-
-CG, IS y MG tampoco muestran un ganador claro con relevancia práctica. En CG
-clase~W, Python~3.13t y 3.14t empatan a 5.63~s y Python~3.15t queda en 5.70~s.
-En IS clase~W, las tres versiones reportan 0.06~s. En MG clase~W, Python~3.14t
-es ligeramente más rápida con 0.71~s, frente a 0.74~s y 0.78~s.
-
-\input{contenido/tablas/versiones_ganador_t32_mode3}
-
-La Tabla~\ref{tab:versiones-ganador-t32-mode3} resume la versión ganadora con
-32~hilos. Python~3.13t aparece como ganadora en la mayoría de filas, pero
-muchos márgenes son 0.00\% por redondeo de la salida NAS. La conclusión no es
-que Python~3.13t sea universalmente superior, sino que, una vez corregida la
-afinidad de hilos, las tres versiones ofrecen resultados muy próximos en los
-benchmarks que escalan.
-
-
-\section{Modo 2 frente a modo 3 con varias versiones}
-\label{sec:versiones-modo2-modo3}
-
-Aunque el capítulo se centra en modo~3, la campaña también ejecutó el modo~2.
-La Tabla~\ref{tab:versiones-modo2-vs-modo3-best} compara, para cada benchmark y
-clase, el mejor resultado de modo~2 y el mejor resultado de modo~3 considerando
-las tres versiones de Python y todos los recuentos de hilos.
-
-\input{contenido/tablas/versiones_modo2_vs_modo3_best}
-
-El modo~3 gana en todas las combinaciones. En CG clase~W, el mejor modo~2 queda
-en 7.91~s y el mejor modo~3 en 0.76~s. En FT clase~W, el mejor modo~2 tarda
-14.22~s y el mejor modo~3 0.38~s. En IS clase~W, el mejor modo~2 tarda 2.00~s
-frente a 0.02~s en modo~3. Incluso cuando el modo~2 obtiene speedups relativos
-altos, su tiempo absoluto no compite con el modo tipado.
-
-Esta tabla refuerza la decisión metodológica de usar modo~3 como configuración
-principal para las clases grandes. La comparación entre versiones debe hacerse
-sobre el modo que realmente elimina el coste de objetos Python en los kernels
-críticos.
-
-
-\section{Relación con la campaña principal}
-\label{sec:versiones-relacion-resultados}
-
-La campaña principal y la campaña de versiones son coherentes: Python~3.15t
-escala en EP y FT, pero no en CG, IS y MG. En la campaña
-principal, EP clase~A alcanza $10.50\times$ y FT clase~A $14.03\times$ a
-32~hilos. En la campaña de versiones, EP y FT clase~W escalan de forma similar
-en Python~3.13t, 3.14t y 3.15t.
-
-La diferencia más importante respecto a las ejecuciones preliminares es la
-configuración de afinidad, analizada en detalle en la
-Sección~\ref{sec:profiling-afinidad}. Con los scripts finales, que no fijan
-afinidad de OpenMP por defecto, desaparece la serialización aparente de
-Python~3.15t en EP y FT que se observaba antes.
-
-
-\section{Implicaciones}
-\label{sec:versiones-implicaciones}
-
-La primera implicación es metodológica. En evaluaciones de Python
-\emph{free-threaded} no basta con indicar que el GIL está desactivado: también
-hay que documentar la versión exacta del intérprete, Cython, NumPy, OMP4Py y
-las variables de entorno que afectan al runtime OpenMP. La afinidad de hilos
-puede cambiar la conclusión experimental.
-
-La segunda implicación afecta a OMP4Py. El mismo port escala en EP y FT con las
-tres versiones evaluadas, lo que refuerza que las regiones paralelas están
-expresadas correctamente para esos kernels. En CG, IS y MG, en cambio, cambiar
-de versión no basta. Sus límites están en la estructura de cada kernel y en el
-coste de coordinación del runtime, como muestra el
-Capítulo~\ref{chap:profiling}.
-
-La tercera implicación es práctica. Para estos benchmarks, la elección entre
-Python~3.13t, 3.14t y 3.15t no cambia la conclusión principal cuando el entorno
-está correctamente configurado. Python~3.13t tiene pequeñas ventajas en algunos
-tiempos absolutos, Python~3.14t mejora MG clase~W a 32~hilos, y Python~3.15t
-queda muy cerca en EP y FT. Las diferencias son mucho menores que el efecto del
-modo de ejecución y del tipo de benchmark.
-
-
-\section{Limitaciones}
-\label{sec:versiones-limitaciones}
-
-La comparación entre versiones no incluye la clase~A. Por tanto, no se puede
-afirmar con esta campaña que Python~3.13t y Python~3.14t mantengan en clase~A
-exactamente los mismos speedups que Python~3.15t. La evidencia de S y W sugiere
-que el patrón debería ser similar en EP y FT, pero confirmarlo requeriría una
-campaña adicional.
-
-La segunda limitación es que el barrido usa potencias de dos. Esto permite
-localizar tendencias y óptimos gruesos, pero no determina el máximo exacto de
-cada curva. En FT, por ejemplo, el óptimo medido aparece en 16~hilos, pero una
-campaña más fina podría encontrar un punto intermedio ligeramente mejor.
-
-La tercera limitación es la resolución de la salida NAS en benchmarks cortos.
-IS clase~S y MG clase~S tienen tiempos tan pequeños que varios ratios quedan
-afectados por redondeo.
-
-
-\section{Conclusiones del capítulo}
+\newpage
+\section{Conclusiones}
 \label{sec:versiones-conclusiones}
 
-La comparación entre versiones muestra que el comportamiento final no depende de
-una única versión de Python. Con la afinidad corregida, Python~3.13t, 3.14t y
-3.15t escalan de forma muy parecida en EP y FT. CG, IS y MG siguen sin escalar
-bien en ninguna versión. Por tanto, las diferencias relevantes del trabajo no
-están en una regresión específica de Python~3.15t, sino en la combinación entre
-modo de ejecución, estructura del benchmark y configuración del runtime.
+La comparación entre versiones tiene dos caras. En los modos compilados, que son
+los que dan tiempos prácticos, el comportamiento final no depende de la versión.
+Con la afinidad corregida, Python~3.13t, 3.14t y 3.15t mantienen las mismas
+conclusiones cualitativas, con EP y FT escalando y CG, IS y MG sin escalabilidad
+sostenida. En los modos interpretados, en cambio, la versión sí importa mucho.
+Python~3.13t escala bastante peor al aumentar los hilos en CG, FT, IS y MG, y solo
+EP queda al margen. Esa penalización se anula al tipar. Donde la versión influye,
+Python~3.15t es siempre la más rápida o queda a la par. Las diferencias prácticas
+del trabajo están en el modo de ejecución, la estructura del benchmark y la
+configuración del runtime.

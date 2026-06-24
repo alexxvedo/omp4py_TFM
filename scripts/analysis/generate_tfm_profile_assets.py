@@ -9,11 +9,21 @@ import math
 from collections import defaultdict
 from pathlib import Path
 
-from generate_tfm_results_assets import Canvas, COLORS, fmt_num, save_mpl, table_env, write, y_lin_map
+from generate_tfm_results_assets import (
+    Canvas,
+    COLORS,
+    canvas_heatmap,
+    fmt_num,
+    heat_color_sequential,
+    save_mpl,
+    table_env,
+    write,
+    y_lin_map,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
-TFM = Path("/home/av/Documents/Master/TFM/omp4py/memoria/Memoria_TFM_MHPC_USC")
+TFM = ROOT / "memoria" / "Memoria_TFM_MHPC_USC"
 TABLE_DIR = TFM / "contenido" / "tablas"
 FIG_DIR = TFM / "imagenes" / "profiling"
 
@@ -24,6 +34,14 @@ DEFAULT_CAMPAIGNS = [
 PYS = ["3.13t", "3.14t", "3.15t"]
 THREADS_EP_FT = [1, 8, 16, 32]
 THREADS_OTHER = [1, 8, 32]
+PY315_SYNC_THREADS = [1, 4, 16]
+PY315_SYNC_BY_BENCH = {
+    "EP": [0.0, 0.4, 6.9],
+    "FT": [0.0, 1.9, 5.5],
+    "CG": [0.2, 3.8, 14.2],
+    "IS": [0.2, 9.8, 49.3],
+    "MG": [0.1, 3.6, 10.8],
+}
 
 
 def fnum(value: str | None) -> float | None:
@@ -109,55 +127,29 @@ def fmt_pct(v: float | None) -> str:
 
 def make_tables(summary: dict) -> None:
     rows = []
-    for bench in ["EP", "FT"]:
-        for py in ["3.14t", "3.15t"]:
-            for threads in THREADS_EP_FT:
-                rows.append(
-                    f"{bench} & {py} & {threads} & "
-                    f"{fmt_s(value(summary, py, bench, threads, 'npb_seconds'))} & "
-                    f"{fmt_x(speedup(summary, py, bench, threads))} & "
-                    f"{fmt_s(value(summary, py, bench, threads, 'perf_cpus_utilized'))} & "
-                    f"{fmt_s(value(summary, py, bench, threads, 'perf_ipc'))} & "
-                    f"{fmt_pct(value(summary, py, bench, threads, 'perf_cache_miss_ratio'))} \\\\"
-                )
+    for bench in ["EP", "FT", "CG", "IS", "MG"]:
+        for threads in THREADS_OTHER:
+            rows.append(
+                f"{bench} & {threads} & "
+                f"{fmt_s(value(summary, '3.15t', bench, threads, 'npb_seconds'))} & "
+                f"{fmt_x(speedup(summary, '3.15t', bench, threads))} & "
+                f"{fmt_s(value(summary, '3.15t', bench, threads, 'perf_cpus_utilized'))} & "
+                f"{fmt_s(value(summary, '3.15t', bench, threads, 'perf_ipc'))} & "
+                f"{fmt_pct(value(summary, '3.15t', bench, threads, 'perf_cache_miss_ratio'))} \\\\"
+            )
     write(
-        TABLE_DIR / "profiling_ep_ft_perf.tex",
+        TABLE_DIR / "profiling_perf_315.tex",
         table_env(
-            "tab:profiling-ep-ft-perf",
-            "Perfil con \\texttt{perf stat} de EP y FT en clase~W, modo~3.",
-            "llrrrrrr",
-            "Bench. & Python & Hilos & NAS (s) & Speedup & CPUs usadas & IPC & Fallos cache (\\%)",
+            "tab:profiling-perf-315",
+            "Perfil homogéneo con \\texttt{perf stat} en Finisterrae~III: "
+            "Python~3.15t, clase~W, modo~3 y recuentos de 1, 8 y 32~hilos "
+            "para todos los benchmarks.",
+            "lrrrrrr",
+            "Bench. & Hilos & NAS (s) & Speedup & CPUs usadas & IPC & Fallos cache (\\%)",
             rows,
             resize=True,
         ),
     )
-
-    rows = []
-    for bench in ["CG", "IS", "MG"]:
-        for py in PYS:
-            for threads in THREADS_OTHER:
-                if value(summary, py, bench, threads, "npb_seconds") is None:
-                    continue
-                rows.append(
-                    f"{bench} & {py} & {threads} & "
-                    f"{fmt_s(value(summary, py, bench, threads, 'npb_seconds'))} & "
-                    f"{fmt_x(speedup(summary, py, bench, threads))} & "
-                    f"{fmt_s(value(summary, py, bench, threads, 'perf_cpus_utilized'))} & "
-                    f"{fmt_s(value(summary, py, bench, threads, 'perf_ipc'))} & "
-                    f"{fmt_pct(value(summary, py, bench, threads, 'perf_cache_miss_ratio'))} \\\\"
-                )
-    write(
-        TABLE_DIR / "profiling_cg_is_mg_perf.tex",
-        table_env(
-            "tab:profiling-cg-is-mg-perf",
-            "Perfil con \\texttt{perf stat} de CG, IS y MG en clase~W, modo~3.",
-            "llrrrrrr",
-            "Bench. & Python & Hilos & NAS (s) & Speedup & CPUs usadas & IPC & Fallos cache (\\%)",
-            rows,
-            resize=True,
-        ),
-    )
-
 
 def line_plot(path: Path, title: str, xlabels: list[str], series: list[tuple[str, list[float | None]]], ylabel: str) -> None:
     c = Canvas(1200, 720)
@@ -292,6 +284,17 @@ def make_figures(summary: dict) -> None:
             "Fallos cache (%)",
         )
 
+    canvas_heatmap(
+        FIG_DIR / "py315_sync_heatmap.png",
+        "Python 3.15: muestras en sincronizacion",
+        [str(t) for t in PY315_SYNC_THREADS],
+        ["EP", "FT", "CG", "IS", "MG"],
+        [PY315_SYNC_BY_BENCH[bench] for bench in ["EP", "FT", "CG", "IS", "MG"]],
+        lambda value_: heat_color_sequential(value_, 50.0),
+        lambda value_: "---" if value_ is None else f"{value_:.1f}%",
+        "Porcentaje de muestras de espera en ejecucion paralela.",
+    )
+
 
 def make_figures_matplotlib(summary: dict) -> bool:
     try:
@@ -306,7 +309,14 @@ def make_figures_matplotlib(summary: dict) -> bool:
             "grid.alpha": 0.25,
             "axes.spines.top": False,
             "axes.spines.right": False,
-            "font.size": 10,
+            "font.size": 20,
+            "axes.titlesize": 21,
+            "axes.labelsize": 20,
+            "xtick.labelsize": 19,
+            "ytick.labelsize": 19,
+            "legend.fontsize": 19,
+            "lines.linewidth": 2.8,
+            "lines.markersize": 10,
             "legend.frameon": False,
         }
     )
@@ -338,6 +348,43 @@ def make_figures_matplotlib(summary: dict) -> bool:
         ax.set_title(title)
         ax.legend(ncol=min(4, len(series)), loc="upper center", bbox_to_anchor=(0.5, -0.12))
         save_mpl(fig, path)
+        plt.close(fig)
+
+    def plot_sync_heatmap() -> None:
+        import numpy as np
+
+        benches = ["EP", "FT", "CG", "IS", "MG"]
+        data = np.array(
+            [[float("nan") if v is None else v for v in PY315_SYNC_BY_BENCH[bench]] for bench in benches],
+            dtype=float,
+        )
+        masked = np.ma.masked_invalid(data)
+        cmap = plt.get_cmap("YlOrRd").copy()
+        cmap.set_bad("#efefef")
+
+        fig, ax = plt.subplots(figsize=(8.8, 5.0))
+        im = ax.imshow(masked, cmap=cmap, vmin=0.0, vmax=50.0, aspect="auto")
+        ax.set_xticks(range(len(PY315_SYNC_THREADS)))
+        ax.set_xticklabels([str(t) for t in PY315_SYNC_THREADS])
+        ax.set_yticks(range(len(benches)))
+        ax.set_yticklabels(benches)
+        ax.set_xlabel("Hilos", fontsize=16)
+        ax.set_ylabel("Benchmark", fontsize=16)
+        ax.set_title("Python 3.15: muestras en sincronización", fontsize=18)
+        ax.tick_params(axis="both", labelsize=15)
+
+        for i, bench in enumerate(benches):
+            for j, value_pct in enumerate(PY315_SYNC_BY_BENCH[bench]):
+                if value_pct is None:
+                    ax.text(j, i, "---", ha="center", va="center", color="#555555", fontsize=14)
+                    continue
+                text_color = "white" if value_pct >= 25.0 else "black"
+                ax.text(j, i, f"{value_pct:.1f}%", ha="center", va="center", color=text_color, fontsize=14)
+
+        cbar = fig.colorbar(im, ax=ax, fraction=0.04, pad=0.04)
+        cbar.set_label("Sincronización (%)", fontsize=15)
+        cbar.ax.tick_params(labelsize=14)
+        save_mpl(fig, FIG_DIR / "py315_sync_heatmap")
         plt.close(fig)
 
     ep_ft_series = [
@@ -391,6 +438,8 @@ def make_figures_matplotlib(summary: dict) -> bool:
             [(bench, [metric_value(py, bench, t, "perf_cache_miss_ratio", 100.0) for t in THREADS_OTHER]) for bench in ["CG", "IS", "MG"]],
             "Fallos de caché (%)",
         )
+
+    plot_sync_heatmap()
 
     return True
 

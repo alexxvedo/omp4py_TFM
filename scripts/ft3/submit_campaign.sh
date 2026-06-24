@@ -7,7 +7,7 @@ source "$SCRIPT_DIR/env.sh"
 profile="${1:-pilot}"
 if [ -n "${PARTITION:-}" ]; then
     partition="$PARTITION"
-elif [ "$profile" = "pilot" ]; then
+elif [ "$profile" = "pilot" ] || [ "$profile" = "versions_interpreted_s" ]; then
     partition="short"
 else
     partition="medium"
@@ -20,7 +20,7 @@ max_parallel="${MAX_PARALLEL:-8}"
 rows_per_task="${ROWS_PER_TASK:-8}"
 if [ -n "${TIME_LIMIT:-}" ]; then
     time_limit="$TIME_LIMIT"
-elif [ "$profile" = "pilot" ]; then
+elif [ "$profile" = "pilot" ] || [ "$profile" = "versions_interpreted_s" ]; then
     time_limit="06:00:00"
 else
     time_limit="3-00:00:00"
@@ -56,6 +56,9 @@ fi
     printf 'time_limit = %s\n' "$time_limit"
     printf 'run_count = %s\n' "$run_count"
     "$runner_python" -c 'import sys; print("runner =", sys.version.replace("\n", " "))'
+    printf 'affinity_note = OMP_PROC_BIND, OMP_PLACES and GOMP_CPU_AFFINITY disabled by run_one/profile_one\n'
+    printf 'omp4py_enable_omp_affinity = %s\n' "${OMP4PY_ENABLE_OMP_AFFINITY:-0}"
+    printf 'wrapper_fix = no OpenMP affinity pinning unless OMP4PY_ENABLE_OMP_AFFINITY=1\n'
 } > "$campaign_dir/env.txt"
 
 array_task_count="$(( (run_count + rows_per_task - 1) / rows_per_task ))"

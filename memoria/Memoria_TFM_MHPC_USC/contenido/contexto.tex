@@ -12,15 +12,12 @@ práctica es que los programas Python multihilo no pueden aprovechar múltiples
 núcleos para trabajo intensivo en el intérprete, incluso en sistemas con
 decenas de cores disponibles.
 
-La restricción no impide toda forma de paralelismo. Extensiones nativas como
-NumPy~\cite{NumPy2020} liberan el GIL durante operaciones vectoriales,
-compiladores como Numba~\cite{Numba2015} generan código máquina para funciones
-numéricas, y bibliotecas como mpi4py~\cite{mpi4py2011} o Dask~\cite{Dask2015}
-distribuyen el trabajo mediante procesos. El propio módulo
-\texttt{multiprocessing} evita el problema con procesos independientes y memoria
-privada. Sin embargo, ninguna de esas vías permite expresar paralelismo de
-memoria compartida al nivel del código Python, con el modelo de hilos y
-directivas que caracteriza a OpenMP.
+La restricción no impide toda forma de paralelismo, porque Python puede delegar
+cómputo a extensiones nativas o distribuir trabajo entre procesos. Sin embargo,
+esas alternativas cambian el modelo de programación. El punto relevante para
+este trabajo es el paralelismo de memoria compartida expresado directamente en
+código Python, con hilos y directivas de estilo OpenMP. La relación con otros
+enfoques se resume en la Sección~\ref{sec:trabajo-relacionado}.
 
 Las versiones \emph{free-threaded} de Python eliminan el GIL. Disponibles de
 forma experimental desde Python~3.13t~\cite{PEP703}, sustituyen los contadores
@@ -41,7 +38,7 @@ iteraciones y sincronización mediante directivas integradas en código Python,
 con una sintaxis análoga a la de OpenMP en C, C++ o
 Fortran~\cite{OpenMPSpec,DagumMenon1998}.
 
-Las directivas se expresan como gestores de contexto:
+Las directivas se expresan como gestores de contexto.
 
 \begin{verbatim}
 with omp("parallel for"):
@@ -50,17 +47,19 @@ with omp("parallel for"):
 \end{verbatim}
 
 La biblioteca ofrece cuatro modos de ejecución, seleccionables en tiempo de
-ejecución mediante el argumento \texttt{-m}:
+ejecución mediante el argumento \texttt{-m}.
 
 \begin{center}
+\adjustbox{max width=\textwidth}{%
 \begin{tabular}{c|l|l}
 Modo & Nombre & Descripción \\
 \hline
-0 & puro      & Runtime puro de OMP4Py en Python; kernels sin compilar. \\
-1 & híbrido   & Runtime nativo (Cython) si está disponible; kernels sin compilar. \\
-2 & compilado & Kernels compilados a Cython; tipos inferidos. \\
+0 & puro      & Runtime puro de OMP4Py en Python, kernels sin compilar. \\
+1 & híbrido   & Runtime nativo (Cython) si está disponible, kernels sin compilar. \\
+2 & compilado & Kernels compilados a Cython, tipos inferidos. \\
 3 & compilado tipado & Cython con anotaciones de tipo explícitas y memoryviews. \\
 \end{tabular}
+}
 \end{center}
 
 En los cuatro modos, las directivas se transforman mediante el árbol sintáctico
@@ -71,7 +70,7 @@ entre modos está en qué partes del código se compilan
 (Figura~\ref{fig:contexto-pipeline}). En los modos~0 y~1 los kernels del
 usuario no se compilan. El modo~0 fuerza el runtime puro de OMP4Py, cuyas
 primitivas de distribución de trabajo y sincronización están implementadas en
-Python, y actúa como línea base funcional. El modo~1 usa el runtime por
+Python, y es la línea base funcional. El modo~1 usa el runtime por
 defecto, que emplea la implementación nativa del propio runtime, compilada con
 Cython, cuando está disponible. Los modos~2 y~3 compilan además los kernels del
 usuario a C mediante Cython~\cite{Cython2011}. La
@@ -110,7 +109,7 @@ La compilación en los modos~2 y~3 se realiza en tiempo de ejecución, antes del
 primer uso de cada kernel. Los kernels compilados se almacenan en caché para
 reutilizarlos en ejecuciones posteriores.
 
-La diversidad de modos permite aislar tres factores de rendimiento: el coste del
+Esta diversidad de modos permite aislar tres factores de rendimiento, el coste del
 runtime Python frente al runtime compilado, el impacto del tipado Cython sobre
 los bucles numéricos y la ganancia real del paralelismo entre hilos.
 
@@ -124,22 +123,22 @@ implementa un núcleo computacional representativo de aplicaciones de
 simulación numérica.
 
 \begin{itemize}
-  \item \textbf{EP} (\emph{Embarrassingly Parallel}): generación de pares
+  \item \textbf{EP} (\emph{Embarrassingly Parallel}), generación de pares
         aleatorios gaussianos mediante el método de Box-Muller. El trabajo
         útil es embarazosamente paralelo. La única sincronización es una
         reducción global al final.
-  \item \textbf{CG} (\emph{Conjugate Gradient}): estimación del menor
+  \item \textbf{CG} (\emph{Conjugate Gradient}), estimación del menor
         autovalor de una matriz dispersa irregular mediante gradiente conjugado.
         Requiere productos matriz-vector, actualizaciones de vectores y
         reducciones escalares en cada iteración.
-  \item \textbf{IS} (\emph{Integer Sort}): ordenación entera mediante un
+  \item \textbf{IS} (\emph{Integer Sort}), ordenación entera mediante un
         algoritmo de counting sort por cubos. Exige paralelismo en histogramas,
         offsets y ordenación local con semántica estricta.
-  \item \textbf{MG} (\emph{Multi-Grid}): resolución aproximada de la ecuación
+  \item \textbf{MG} (\emph{Multi-Grid}), resolución aproximada de la ecuación
         de Poisson 3D mediante el método multigrid. Opera sobre mallas en varios
         niveles de resolución con operaciones de restricción, prolongación e
         interpolación.
-  \item \textbf{FT} (\emph{Fourier Transform}): solución de una EDP mediante
+  \item \textbf{FT} (\emph{Fourier Transform}), solución de una EDP mediante
         transformadas de Fourier 3D complejas. El kernel principal es una FFT
         aplicada sucesivamente a cada dimensión de un array tridimensional de
         números complejos.
@@ -160,34 +159,67 @@ verifique correctamente se rechaza.
 \label{sec:trabajo-relacionado}
 
 El paralelismo en Python se ha abordado tradicionalmente por vías que evitan el
-GIL en lugar de eliminarlo. Las extensiones nativas como NumPy~\cite{NumPy2020}
-liberan el GIL durante operaciones vectoriales, y compiladores como
-Numba~\cite{Numba2015} o Cython~\cite{Cython2011} generan código máquina para
-funciones numéricas. En todos los casos el modelo de programación paralela queda
-oculto en la capa nativa y no se expresa al nivel del código Python. La
-excepción más próxima a OMP4Py es PyOMP~\cite{PyOMP2021}, que añade directivas
-OpenMP a funciones compiladas con Numba. Su alcance queda, sin embargo,
-restringido al subconjunto del lenguaje que Numba puede compilar, mientras que
-OMP4Py opera sobre código Python estándar y delega en Cython la compilación
-opcional de los kernels. El
-paralelismo de procesos (\texttt{multiprocessing}, mpi4py~\cite{mpi4py2011} o
-Dask~\cite{Dask2015}) escala a múltiples nodos, pero con memoria privada y un
-coste de comunicación que no corresponde al modelo de memoria compartida de
-OpenMP~\cite{OpenMPSpec,DagumMenon1998}.
+GIL en lugar de eliminarlo. Algunas delegan el cómputo a bibliotecas nativas,
+otras compilan subconjuntos del lenguaje y otras distribuyen el trabajo entre
+procesos. La Tabla~\ref{tab:trabajo-relacionado-python} resume la posición de
+OMP4Py frente a esas alternativas.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\adjustbox{max width=\textwidth}{%
+\begin{tabular}{p{0.24\textwidth}|p{0.32\textwidth}|p{0.34\textwidth}}
+\hline
+\textbf{Enfoque} & \textbf{Modelo de programación} & \textbf{Relación con este TFM} \\
+\hline
+NumPy~\cite{NumPy2020} & Operaciones vectoriales ejecutadas en código nativo,
+habitualmente con liberación del GIL. & Muy eficiente cuando el algoritmo encaja
+en primitivas vectoriales, pero el paralelismo no se expresa como regiones,
+bucles y sincronización de memoria compartida al nivel del programa Python. \\
+\hline
+Cython~\cite{Cython2011} y Numba~\cite{Numba2015} & Compilación de funciones
+numéricas a código nativo, con restricciones diferentes sobre tipos y
+constructos soportados. & Reducen el coste del intérprete. En OMP4Py, Cython es
+precisamente la capa que permite estudiar cuánto aporta el tipado frente al
+paralelismo entre hilos. \\
+\hline
+PyOMP~\cite{PyOMP2021} & Directivas OpenMP sobre funciones compiladas con
+Numba. & Es la alternativa más próxima por usar directivas, pero queda ligada al
+subconjunto compilable por Numba. OMP4Py parte de código Python con directivas
+propias y compila opcionalmente los kernels mediante Cython. \\
+\hline
+\texttt{multiprocessing}, mpi4py~\cite{mpi4py2011} y Dask~\cite{Dask2015} &
+Paralelismo mediante procesos y, en mpi4py/Dask, posible distribución entre
+nodos. & Escalan más allá de un proceso, pero cambian el modelo a memoria
+privada y comunicación explícita o gestionada. Este TFM se centra en memoria
+compartida y equipos de hilos al estilo OpenMP. \\
+\hline
+OMP4Py~\cite{PineiroOMP4PyFGCS2026,PineiroOMP4PyCGO2026} & Directivas de estilo
+OpenMP integradas en código Python, con runtime de hilos y modos interpretados o
+compilados. & Permite evaluar, sobre el mismo código fuente, el coste del runtime
+Python, el efecto del tipado Cython y la escalabilidad real en Python
+\emph{free-threaded}. \\
+\hline
+\end{tabular}
+}
+\caption{Relación entre OMP4Py y otros enfoques de paralelismo o aceleración en
+Python.}
+\label{tab:trabajo-relacionado-python}
+\end{table}
 
 La eliminación del GIL en las versiones \emph{free-threaded}~\cite{PEP703} abre
-una vía distinta: ejecutar hilos Python reales sobre memoria compartida.
-OMP4Py~\cite{PineiroOMP4PyFGCS2026,PineiroOMP4PyCGO2026} se sitúa en esa vía al
-trasladar el modelo de directivas de OpenMP al código Python. Este trabajo se
-diferencia de los estudios que presentan la propia biblioteca en que su objeto
-no es OMP4Py en sí, sino su evaluación sobre aplicaciones completas y a lo largo
-de varias versiones del intérprete.
+una vía distinta, la de ejecutar hilos Python reales sobre memoria compartida. OMP4Py
+se sitúa en esa vía al trasladar el modelo de directivas de
+OpenMP~\cite{OpenMPSpec,DagumMenon1998} al código Python. A diferencia de los
+trabajos que presentan la propia biblioteca, esta memoria evalúa su
+comportamiento sobre aplicaciones completas, con verificación NAS, cuatro modos
+de ejecución y varias versiones del intérprete.
 
 Como cargas de trabajo se emplean los NAS Parallel Benchmarks~\cite{NPB1994},
 ampliamente utilizados para evaluar sistemas paralelos. Existen portados previos
-de los NPB a Python a partir de las versiones seriales en C++~\cite{NPBPython},
-que sirven de base serial para la adaptación descrita en el
+de los NPB a Python a partir de las versiones secuenciales en C++~\cite{NPBPython},
+que sirven de base secuencial para la adaptación descrita en el
 Capítulo~\ref{chap:adaptacion-nas}. Hasta donde alcanza este trabajo, la
-evaluación de OMP4Py sobre kernels NPB completos, con sus cuatro modos de
-ejecución y la comparación entre versiones \emph{free-threaded} de Python, no se
-había abordado de forma sistemática.
+evaluación de OMP4Py sobre kernels NPB completos, con comparación sistemática de
+modos y de versiones \emph{free-threaded}, no se había abordado.

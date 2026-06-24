@@ -3,14 +3,17 @@
 \small
 \begin{tabular}{lrrr}
 \hline
-Benchmark & 1 hilo & 4 hilos & 8 hilos \\
+Benchmark & 1~hilo & 4~hilos & 16~hilos \\
 \hline
-EP & 0.0\% & 1.0\% & 16.3\% \\
-FT & 0.0\% & 9.0\% & 17.4\% \\
-CG & 0.1\% & 11.6\% & 19.7\% \\
-MG & 0.0\% & 9.7\% & 17.0\% \\
+EP & 0.0\% & 0.4\% & 6.9\% \\
+FT & 0.0\% & 1.9\% & 5.5\% \\
+CG & 0.2\% & 3.8\% & 14.2\% \\
+IS & 0.2\% & 9.8\% & 49.3\% \\
+MG & 0.1\% & 3.6\% & 10.8\% \\
 \hline
 \end{tabular}
-\caption{Coste de sincronización medido con el profiler de muestreo de Python~3.15 (\texttt{profiling.sampling}, modo \emph{wall}, todos los hilos). Porcentaje de las muestras de ejecución paralela que caen en primitivas de espera del runtime OMP4Py (barrera y reducción, \texttt{threading.Condition.wait}), frente al número de hilos. Clase~S, modo~1.}
+\caption{Coste de sincronización medido con \texttt{profiling.sampling} en
+Finisterrae~III. Porcentaje de muestras de espera sobre ejecución paralela;
+clase~S, modo~1.}
 \label{tab:profiling-py315-sync}
 \end{table}

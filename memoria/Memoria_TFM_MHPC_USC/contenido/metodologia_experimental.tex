@@ -5,12 +5,13 @@
 \label{sec:objetivo-evaluacion}
 
 La evaluación experimental mide tres aspectos del comportamiento de OMP4Py sobre
-los cinco benchmarks adaptados: corrección, rendimiento absoluto y
-escalabilidad. La corrección se comprueba mediante la verificación oficial de
+los cinco benchmarks adaptados. Son la corrección, el rendimiento absoluto y
+la escalabilidad. La corrección se comprueba mediante la verificación oficial de
 cada benchmark. El rendimiento se mide con el tiempo interno reportado por NAS
 y con los Mop/s de salida. La escalabilidad se estudia comparando el mejor
 tiempo observado con 1, 2, 4, 8, 16 y 32~hilos dentro del mismo modo, clase e
-intérprete.
+intérprete. Como control de robustez, también se calcula la mediana y el rango
+de las repeticiones válidas.
 
 La comparación entre modos de ejecución articula el estudio. Los modos~0 y~1
 sirven como referencia funcional y permiten cuantificar el coste de interpretar
@@ -25,7 +26,7 @@ Cython sobre los kernels numéricos.
 Los experimentos se ejecutan en Finisterrae~III, el supercomputador del Centro
 de Supercomputación de Galicia (CESGA), mediante el gestor de trabajos Slurm.
 Se utilizan nodos de tipo \texttt{clk}, con procesadores Intel Xeon de 48 núcleos
-y memoria DDR4. Las ejecuciones se limitan a 32 hilos para facilitar la
+y memoria DDR4. Las ejecuciones se limitan a 32~hilos para facilitar la
 planificación de Slurm y cubrir los rangos de baja, media y alta concurrencia
 dentro de un nodo.
 
@@ -35,6 +36,11 @@ la comparación entre versiones se utilizaron también Python~3.13.13t y
 Python~3.14.4t, ambos compilados como intérpretes \emph{free-threaded}. En las
 tres versiones de la campaña comparativa se comprobó que el GIL estaba
 desactivado.
+
+Para aligerar tablas, figuras y análisis, el resto del documento usa las formas
+abreviadas Python~3.13t, Python~3.14t y Python~3.15t. Estas abreviaturas se
+refieren, respectivamente, a las compilaciones exactas Python~3.13.13t,
+Python~3.14.4t y Python~3.15.0b1t descritas aquí.
 
 El entorno de ejecución se automatiza mediante
 \texttt{scripts/ft3/setup\_venvs.sh}, que crea un entorno virtual por versión
@@ -80,19 +86,15 @@ Figura~\ref{fig:metodologia-campana} resume este flujo.
   \draw[flecha] (run) -- (parse);
 \end{tikzpicture}
 }
-\caption{Flujo de la infraestructura de campaña en Finisterrae~III: generación
+\caption{Flujo de la infraestructura de campaña en Finisterrae~III. Generación
 de la matriz de combinaciones, envío como array de Slurm, ejecución de cada
 combinación y consolidación de resultados.}
 \label{fig:metodologia-campana}
 \end{figure}
 
 Cada fila de la matriz invoca el benchmark correspondiente mediante la
-interfaz común descrita en el Capítulo~\ref{chap:adaptacion-nas}:
-
-\begin{verbatim}
-python <BENCHMARK>_Python.py -c <CLASE> -t <HILOS> -m <MODO>
-\end{verbatim}
-
+interfaz común descrita en el Capítulo~\ref{chap:adaptacion-nas}
+(opciones \texttt{-c}, \texttt{-t} y \texttt{-m}).
 Para cada ejecución se registra la salida estándar, la salida de error, el
 código de retorno, el tiempo de proceso externo, el tiempo interno NAS, los
 Mop/s y el estado de verificación. Las combinaciones se distribuyen entre
@@ -111,116 +113,83 @@ limitaciones del modo o la implementación.
 \section{Diseño de la matriz experimental}
 \label{sec:matriz-experimental}
 
-La evaluación se divide en dos bloques: una campaña principal con
+La evaluación se divide en dos bloques, una campaña principal con
 Python~3.15.0b1t y una campaña comparativa entre versiones \emph{free-threaded}.
 
-\paragraph{Campaña principal: clase S, todos los modos.}
+La campaña principal se divide en tres bloques por clase, y una campaña
+comparativa añade la variación de intérprete. La
+Tabla~\ref{tab:matriz-experimental} resume las cuatro configuraciones. Todas
+ejecutan los cinco benchmarks (CG, EP, FT, IS, MG) con 1, 2, 4, 8, 16 y
+32~hilos. Difieren en el intérprete, la clase, los modos evaluados y el número
+de repeticiones.
+
+\subsection{Campaña principal en clase S}
 La clase~S es la más pequeña de las NAS y permite comparar los cuatro modos en
 un tiempo razonable. Su papel principal es validar la corrección en todas las
 combinaciones y cuantificar el coste relativo de cada modo con un único hilo.
 
-\begin{center}
-\begin{tabular}{l|l}
-Parámetro & Valores \\
-\hline
-Python & 3.15.0b1t \\
-Benchmarks & CG, EP, FT, IS, MG \\
-Clase & S \\
-Modos & 0, 1, 2, 3 \\
-Hilos & 1, 2, 4, 8, 16, 32 \\
-Repeticiones & 3 \\
-\end{tabular}
-\end{center}
-
-\paragraph{Campaña principal: clase W, modos compilados.}
-La clase~W representa una carga de tamaño intermedio. Se restringe a los
+\subsection{Campaña principal en clase W}
+La clase~W es una carga de tamaño intermedio. Se restringe a los
 modos~2 y~3 porque los modos~0 y~1 producen tiempos excesivamente altos en
 cargas de este tamaño y no aportan información adicional sobre paralelismo real.
 
-\begin{center}
-\begin{tabular}{l|l}
-Parámetro & Valores \\
-\hline
-Python & 3.15.0b1t \\
-Benchmarks & CG, EP, FT, IS, MG \\
-Clase & W \\
-Modos & 2, 3 \\
-Hilos & 1, 2, 4, 8, 16, 32 \\
-Repeticiones & 3 \\
-\end{tabular}
-\end{center}
-
-\paragraph{Campaña principal: clase A, modo tipado.}
+\subsection{Campaña principal en clase A}
 La clase~A es la carga principal para analizar escalabilidad. En problemas de
 mayor tamaño, el cociente entre trabajo útil y overhead de paralelización es más
 favorable, por lo que esta campaña resulta más informativa. Se ejecuta
 únicamente el modo~3 porque las clases~S y~W ya muestran que es el único modo
 práctico para cargas grandes.
 
-\begin{center}
-\begin{tabular}{l|l}
-Parámetro & Valores \\
-\hline
-Python & 3.15.0b1t \\
-Benchmarks & CG, EP, FT, IS, MG \\
-Clase & A \\
-Modos & 3 \\
-Hilos & 1, 2, 4, 8, 16, 32 \\
-Repeticiones & 3 \\
-\end{tabular}
-\end{center}
-
-\paragraph{Campaña comparativa entre versiones.}
+\subsection{Campaña comparativa entre versiones}
 La campaña comparativa mantiene el mismo código fuente y ejecuta Python~3.13.13t,
-Python~3.14.4t y Python~3.15.0b1t. Se limita a las clases~S y~W y a los
-modos~2 y~3 para concentrar el coste de cómputo en las configuraciones
-compiladas. La clase~S usa cinco repeticiones por combinación y la clase~W usa
-tres.
+Python~3.14.4t y Python~3.15.0b1t. Cubre las clases~S y~W. Los modos
+compilados~2 y~3 se ejecutan en ambas clases, y los modos interpretados~0 y~1 se
+añaden en clase~S, donde el código no compilado todavía termina en un tiempo
+razonable y permite observar si la versión del intérprete influye en la
+ejecución no compilada. La clase~S usa cinco repeticiones por combinación y la
+clase~W usa tres.
 
-\begin{center}
-\begin{tabular}{l|l}
-Parámetro & Valores \\
+\begin{table}[htbp]
+\centering
+\begin{tabular}{l|c|c|c|c}
+ & \multicolumn{3}{c|}{Campaña principal} & Comparativa \\
+\cline{2-4}
+Parámetro & Clase S & Clase W & Clase A & versiones \\
 \hline
-Python & 3.13.13t, 3.14.4t, 3.15.0b1t \\
-Benchmarks & CG, EP, FT, IS, MG \\
-Clases & S, W \\
-Modos & 2, 3 \\
-Hilos & 1, 2, 4, 8, 16, 32 \\
-Repeticiones & S: 5; W: 3 \\
+Python & 3.15.0b1t & 3.15.0b1t & 3.15.0b1t & 3.13.13t, 3.14.4t, 3.15.0b1t \\
+Clase & S & W & A & S, W \\
+Modos & 0, 1, 2, 3 & 2, 3 & 3 & S (0--3), W (2, 3) \\
+Repeticiones & 3 & 3 & 3 & S (5), W (3) \\
 \end{tabular}
-\end{center}
+\caption{Matriz experimental. Todas las configuraciones ejecutan CG, EP, FT, IS
+y MG con 1, 2, 4, 8, 16 y 32~hilos.}
+\label{tab:matriz-experimental}
+\end{table}
 
-\paragraph{Campaña de profiling.}
-Se lanzó una campaña específica de profiling con \texttt{perf stat} para
+\subsection{Campaña de profiling}
+Se lanzó una campaña específica de profiling con \texttt{perf stat}~\cite{LinuxPerfStat} para
 relacionar los tiempos NAS con ocupación de CPU, IPC y eventos de memoria. Esta
 campaña no repite toda la matriz experimental, sino que se concentra en los
 casos necesarios para explicar por qué EP y FT escalan y por qué CG, IS y MG no
-obtienen aceleración sostenida. EP y FT se midieron en clase~W, modo~3, con
-Python~3.14t y Python~3.15t, usando 1, 8, 16 y 32~hilos. CG, IS y MG se
-midieron en clase~W, modo~3, con Python~3.13t, Python~3.14t y Python~3.15t,
-usando 1, 8 y 32~hilos.
-
-El reparto de configuraciones responde al objetivo de cada grupo. En EP y FT,
-que escalan, interesa la forma de la curva y el punto donde FT deja de mejorar,
-por lo que se incluye el recuento de 16~hilos y se comparan las dos versiones
-más recientes, Python~3.14t y 3.15t. En CG, IS y MG, que no escalan, interesa
-comprobar si esa ausencia de escalabilidad es común a las tres versiones del
-intérprete o propia de una, por lo que se añade Python~3.13t. Para ese grupo
-bastan 1, 8 y 32~hilos, porque la degradación ya es monótona y el punto
-intermedio de 16 no aporta información adicional.
+obtienen aceleración sostenida. Para evitar mezclar efectos de versión con el
+diagnóstico de bajo nivel, el cuerpo de la memoria usa una matriz homogénea, con
+los cinco benchmarks en clase~W, modo~3, con Python~3.15t y los recuentos de
+1, 8 y 32~hilos. Los óptimos finos y la comparación entre versiones se analizan
+en sus campañas correspondientes, y \texttt{perf stat} se usa aquí como apoyo
+diagnóstico sobre la configuración principal.
 
 \begin{center}
-\resizebox{\textwidth}{!}{%
+\small
 \begin{tabular}{l|l}
 Parámetro & Valores \\
 \hline
 Herramienta & \texttt{perf stat} \\
-Benchmarks EP/FT & Python 3.14t y 3.15t; hilos 1, 8, 16, 32 \\
-Benchmarks CG/IS/MG & Python 3.13t, 3.14t y 3.15t; hilos 1, 8, 32 \\
+Benchmarks & CG, EP, FT, IS y MG \\
+Python & 3.15.0b1t \\
 Clase y modo & W, modo 3 \\
+Hilos & 1, 8 y 32 \\
 Métricas & CPUs utilizadas, ciclos, instrucciones, IPC y eventos de caché \\
 \end{tabular}
-}
 \end{center}
 
 Cada fila de profiling ejecuta primero una repetición de calentamiento y
@@ -239,14 +208,14 @@ Los modos~0 y~1 no incluyen compilación Cython. En clase~S, el modo~0 ya
 multiplica los tiempos del modo~3 por factores que van de $16\times$ en FT a
 $381\times$ en MG. Extender esos modos a clases W o~A consumiría
 recursos de cluster desproporcionados sin añadir información relevante sobre la
-escalabilidad paralela, que es el objetivo de las clases mayores. Por ello, los
-modos~0 y~1 se evalúan de forma completa solo en clase~S.
+escalabilidad paralela, que es el objetivo de las clases mayores. Por eso los
+modos~0 y~1 se evalúan por completo solo en clase~S.
 
 La misma lógica justifica no ejecutar modo~2 en clase~A dentro de la campaña
 principal. El modo~2 es útil para cuantificar el efecto del tipado en clases~S
 y~W, pero sus tiempos absolutos en W ya muestran que no es una configuración
 práctica para cargas grandes. La comparación entre versiones se restringe a S y
-W por el mismo motivo: permite estudiar el efecto del intérprete sin multiplicar
+W por el mismo motivo, ya que permite estudiar el efecto del intérprete sin multiplicar
 el coste de la campaña con clase~A.
 
 
@@ -258,19 +227,32 @@ benchmark mide entre el inicio y el fin del cómputo, excluyendo inicialización
 E/S y verificación. Los Mop/s reportados por el benchmark se utilizan como
 métrica complementaria.
 
-El análisis se basa en el mejor tiempo de las repeticiones válidas para cada
-combinación. Esta elección aproxima el tiempo de ejecución menos perturbado por
-ruido del sistema y evita que una interrupción puntual del nodo domine la
-comparación.
+El análisis principal se basa en el mejor tiempo de las repeticiones válidas
+para cada combinación. Esta elección es habitual en benchmarking de rendimiento,
+porque aproxima el tiempo de ejecución menos perturbado por ruido del sistema y evita
+que una interrupción puntual del nodo domine la comparación. Para que esa
+decisión no dependa de una sola ejecución favorable, la campaña conserva todas
+las repeticiones y calcula también mediana, coeficiente de variación y rango.
 
-La variabilidad entre repeticiones es baja y respalda esta elección. Sobre las
-207 combinaciones de la campaña principal con al menos dos ejecuciones válidas,
-el coeficiente de variación mediano del tiempo NAS es del 0.65\% y el 95\% de
-las combinaciones queda por debajo del 5\%. Los pocos casos con variación
-superior al 10\% corresponden a kernels de menos de 0.1~s (IS y MG en clases
-pequeñas), donde la resolución de dos decimales de la salida NAS domina el
-cociente. Por tanto, usar el mejor tiempo en lugar de la media no introduce un
-sesgo apreciable en las combinaciones con señal temporal relevante.
+La Tabla~\ref{tab:resultados-estabilidad-repeticiones} resume esa estabilidad.
+En la campaña principal, el coeficiente de variación mediano se mantiene entre
+0.59\% y 0.75\% según la clase. En los modos compilados de la comparación entre
+versiones queda en 0.61--0.64\%, y allí la diferencia mediana entre la mediana y
+el mejor tiempo es inferior al 0.5\%. Los modos interpretados de esa comparación
+son algo más variables, con un coeficiente de variación mediano del 1.59\% en
+clase~S, debido sobre todo a EP y FT en ejecuciones largas no compiladas, aunque
+la mediana se mantiene cerca del mejor tiempo. Por tanto, las conclusiones no dependen
+de escoger una repetición aislada. La mediana conduce a la misma lectura, pero el
+mejor tiempo se mantiene como referencia para calcular speedups y comparar
+rendimiento.
+
+\input{contenido/tablas/resultados_estabilidad_repeticiones}
+
+Los casos con mediana NAS igual a 0.00~s se excluyen de los porcentajes relativos
+de la tabla porque el cociente no está definido. Corresponden a ejecuciones muy
+cortas de IS clase~S en modo~3, donde la resolución de dos decimales de la salida
+NAS domina la medida. Esos casos sirven para confirmar corrección y orden de
+magnitud, pero no para ratios finos.
 
 La fórmula de speedup utilizada es
 
@@ -285,11 +267,61 @@ denominador y el numerador comparten el mismo modo de ejecución. Un valor
 inferior a~1 indica que la ejecución con más hilos fue más lenta que la
 ejecución secuencial equivalente en ese modo. El límite superior alcanzable está
 acotado por la fracción secuencial de cada benchmark, de acuerdo con la ley de
-Amdahl~\cite{Amdahl1967}: las reducciones, barreras y secciones críticas que no
+Amdahl~\cite{Amdahl1967}. Las reducciones, barreras y secciones críticas que no
 se reparten entre hilos fijan el techo de escalabilidad de cada kernel.
 
-Los resultados se clasifican en tres categorías. La primera comprende
-ejecuciones correctas y medibles. La segunda agrupa ejecuciones correctas en las
-que el overhead domina al trabajo útil. La tercera recoge ejecuciones no viables
-por timeout, error o verificación incorrecta. Esta clasificación separa las
-limitaciones del algoritmo o del tamaño de clase de los fallos de implementación.
+Los resultados se clasifican en tres categorías. La primera comprende las
+ejecuciones correctas y medibles. La segunda agrupa las ejecuciones correctas en
+las que el overhead domina al trabajo útil. La tercera recoge las no viables, por
+timeout, error o verificación incorrecta. Esta clasificación separa los límites
+del algoritmo o del tamaño de clase de los fallos de implementación.
+
+
+\section{Amenazas a la validez}
+\label{sec:amenazas-validez}
+
+La evaluación se diseñó para aislar el efecto del modo de ejecución, el número
+de hilos y la versión del intérprete, pero conserva varias amenazas a la validez
+que deben tenerse en cuenta al interpretar los resultados.
+
+\subsection{Validez interna}
+El ruido del cluster puede afectar ejecuciones individuales. Para mitigarlo, las
+campañas usan repeticiones, conservan todos los registros y comparan el mejor
+tiempo válido dentro de cada combinación. Esta decisión favorece la medida menos
+perturbada por interferencias externas, y queda respaldada por la baja
+variabilidad observada entre repeticiones. Además, las campañas finales eliminan
+por defecto las variables de afinidad de OpenMP para evitar que una política de
+pinning externa condicione la planificación de hilos del intérprete
+\emph{free-threaded}.
+
+\subsection{Validez de medida}
+El tiempo principal es el tiempo interno NAS, no el tiempo total del proceso. Por
+eso las conclusiones de rendimiento se refieren al kernel medido por cada
+benchmark y no al coste de arranque, importación, compilación o verificación. En
+benchmarks muy cortos, especialmente IS y MG en clase~S, la salida NAS con dos
+decimales produce valores de 0.00~s o 0.01~s. Esos casos sirven para confirmar
+corrección y tiempos absolutos bajos, pero no para calcular ratios finos. En el
+profiling con \texttt{perf stat}, los contadores se recogen a nivel de proceso
+completo. Por tanto, en ejecuciones de centésimas de segundo se usan como apoyo
+diagnóstico y no como medida exacta del kernel.
+
+\subsection{Validez externa}
+Las campañas se ejecutan en nodos \texttt{clk} de Finisterrae~III y con un rango
+máximo de 32~hilos. Los resultados caracterizan esa plataforma y ese rango de
+concurrencia. Extrapolarlos a otros procesadores, políticas de afinidad o
+recuentos de hilos requeriría repetir la campaña. La comparación entre versiones
+se limita a las clases~S y~W por coste de cluster. La clase~A se mide con
+Python~3.15t en la campaña principal, pero no se repite para Python~3.13t y
+3.14t.
+
+\subsection{Validez del instrumento}
+El nuevo profiling de Python~3.15 se usa como diagnóstico complementario. La
+campaña principal y la campaña de \texttt{perf stat} se ejecutan en
+Finisterrae~III. El profiler de Python~3.15 también se ejecuta en
+Finisterrae~III, en clase~S y modo~1, para que las primitivas Python del runtime
+sean visibles al muestreo y al trazado. El trazado completó los cinco benchmarks
+y proporciona recuentos exactos de regiones, hilos y barreras. El muestreo se
+usa en los puntos que completaron de forma válida y aporta porcentajes de espera
+en barreras y reducciones. Estas medidas no sustituyen a los tiempos de la
+campaña principal, sino que se interpretan como evidencia estructural sobre
+sincronización, creación de equipos y balance de carga.

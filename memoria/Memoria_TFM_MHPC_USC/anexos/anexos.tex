@@ -9,7 +9,7 @@
 
 Todos los benchmarks adaptados comparten la misma interfaz de línea de comandos,
 lo que permite reutilizar la infraestructura de campaña sin cambios por
-benchmark. La invocación general es:
+benchmark. La invocación general es la siguiente.
 
 \begin{verbatim}
 python <BENCHMARK>_Python.py -c <CLASE> -t <HILOS> -m <MODO>
@@ -24,12 +24,12 @@ valores que recopila la infraestructura de medición descrita en el
 Capítulo~\ref{chap:metodologia}.
 
 
-\chapter{Ejemplo de kernel adaptado: EP en modo tipado}
+\chapter{Kernel EP adaptado en modo tipado}
 \label{anexo:kernel-ep}
 
 El siguiente extracto corresponde al kernel principal de EP en su versión
 tipada (modo~3), \texttt{ep\_compute\_types}. Ilustra las decisiones de
-implementación descritas en la Sección~\ref{sec:decisiones-implementacion}: la
+implementación descritas en la Sección~\ref{sec:decisiones-implementacion}, como la
 región \texttt{parallel} con reducción sobre \texttt{sx} y \texttt{sy}, la lista
 explícita de variables privadas, las memoryviews tipadas
 (\texttt{cython.double[:]}) y la sección crítica final que acumula el histograma.
@@ -77,16 +77,22 @@ def ep_compute_types(nn: int, nk: int, nk_plus: int, nq: int, an: float):
 
 La declaración explícita de variables privadas en la cláusula
 \texttt{private(...)} es la corrección descrita en la
-Sección~\ref{sec:decisiones-implementacion}: sin ella, varias temporales se
+Sección~\ref{sec:decisiones-implementacion}. Sin ella, varias temporales se
 compartían entre hilos y la verificación NAS fallaba.
 
 
 \chapter{Infraestructura de ejecución en Finisterrae~III}
 \label{anexo:infraestructura}
 
+Todo el código de este trabajo está disponible en el repositorio público
+\url{https://github.com/alexxvedo/omp4py_TFM}, que reúne los cinco benchmarks
+adaptados, el runtime de OMP4Py empleado y los scripts de campaña descritos en
+este anexo. La biblioteca OMP4Py original se mantiene en
+\url{https://github.com/citiususc/omp4py}.
+
 La campaña se automatiza con los scripts del directorio \texttt{scripts/ft3}. El
 script \texttt{array\_run.sbatch} es la plantilla de Slurm que ejecuta cada
-elemento del array de trabajos; cada elemento procesa varias filas de la matriz
+elemento del array de trabajos. Cada elemento procesa varias filas de la matriz
 de combinaciones de forma secuencial mediante \texttt{run\_one.py}.
 
 \begin{verbatim}
@@ -113,12 +119,13 @@ done
 
 La selección del intérprete \emph{free-threaded} y la desactivación explícita
 del GIL se realizan en \texttt{env.sh} mediante la variable
-\texttt{PYTHON\_GIL=0} y la ruta de bibliotecas correspondiente a cada versión:
+\texttt{PYTHON\_GIL=0} y la ruta de bibliotecas correspondiente a cada versión.
 
 \begin{verbatim}
 ft3_export_python_runtime() {
     local prefix; prefix="$(ft3_python_prefix "$1")"
-    export LD_LIBRARY_PATH="$prefix/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    export LD_LIBRARY_PATH=\
+"$prefix/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     export PYTHON_GIL=0
 }
 \end{verbatim}
@@ -130,7 +137,7 @@ ft3_export_python_runtime() {
 Cada campaña genera un directorio bajo \texttt{results/} con los siguientes
 artefactos, que constituyen la base de las tablas y figuras de los
 Capítulos~\ref{chap:resultados},~\ref{chap:profiling}
-y~\ref{chap:versiones}:
+y~\ref{chap:versiones}.
 
 \begin{itemize}
   \item \texttt{manifest.csv}: matriz completa de combinaciones de la campaña.
@@ -144,8 +151,158 @@ y~\ref{chap:versiones}:
         Cython y variables de entorno).
 \end{itemize}
 
+La relación entre artefactos y uso dentro de la memoria es la siguiente.
+
+\begin{center}
+\small
+\adjustbox{max width=\textwidth}{%
+\begin{tabular}{p{0.30\textwidth}|p{0.58\textwidth}}
+\hline
+Artefacto & Uso principal \\
+\hline
+\texttt{manifest.csv} & Define la matriz experimental con benchmark, clase, modo,
+versión de Python, hilos y repetición. Permite comprobar que las tablas proceden
+de una campaña cerrada y no de ejecuciones aisladas. \\
+\hline
+\texttt{records/} y \texttt{raw/} & Conservan la evidencia por ejecución, con
+salida NAS, verificación, código de retorno, tiempo interno y tiempo externo.
+Son la base auditable de los Capítulos~\ref{chap:resultados},
+\ref{chap:profiling} y~\ref{chap:versiones}. \\
+\hline
+\texttt{summary.csv} & Alimenta las tablas completas y permite recalcular medias,
+mejores tiempos, speedups y comprobaciones de verificación. \\
+\hline
+\texttt{summary\_best.csv} & Fuente directa de las tablas resumen de tiempos,
+speedups, óptimos y ganadores por versión. \\
+\hline
+\texttt{env.txt} & Documenta intérprete, bibliotecas y variables de entorno,
+incluida la afinidad, para interpretar la validez de la campaña. \\
+\hline
+\texttt{py315\_profile\_summary.csv},
+\texttt{py315\_sampling\_summary.csv} y
+\texttt{py315\_tracing\_summary.csv} & Resúmenes del profiling con
+Python~3.15. De ellos se derivan las tablas de muestreo, gestión de hilos y
+trazado del Capítulo~\ref{chap:profiling}. \\
+\hline
+\texttt{latex/} & Tablas generadas automáticamente a partir de los resúmenes,
+incluidas las del muestreo y el trazado de Python~3.15 en Finisterrae~III. \\
+\hline
+\end{tabular}}
+\end{center}
+
 El registro de la versión exacta de cada componente y de las variables de
 entorno responde a la implicación metodológica del
-Capítulo~\ref{chap:versiones}: en evaluaciones de Python \emph{free-threaded} la
-configuración del runtime y la afinidad de hilos pueden alterar la conclusión
+Capítulo~\ref{chap:versiones}. En evaluaciones de Python \emph{free-threaded} la
+configuración del runtime y la afinidad del entorno pueden alterar la conclusión
 experimental, por lo que deben quedar documentadas junto con los resultados.
+
+
+\chapter{Material completo de la comparación entre versiones en modo 3}
+\label{anexo:tablas-versiones}
+
+El Capítulo~\ref{chap:versiones} muestra que, en los modos compilados, las tres
+versiones de Python se comportan de forma muy parecida, por lo que el cuerpo se
+queda con una figura resumen. Este anexo reúne el material de modo~3 que respalda
+esa síntesis. Las dos primeras tablas dan los tiempos y speedups completos para
+todos los recuentos de hilos. Después vienen los óptimos por combinación, la
+versión ganadora a 32~hilos, el tiempo absoluto a 32~hilos y las curvas de speedup
+por benchmark, donde se aprecia que las tres versiones siguen trazas casi
+idénticas.
+
+\input{contenido/tablas/versiones_mode3_tiempos_completos}
+
+\input{contenido/tablas/versiones_mode3_speedups_completos}
+
+\input{contenido/tablas/versiones_mode3_optimos}
+
+\input{contenido/tablas/versiones_ganador_t32_mode3}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{imagenes/versiones/mode3_t32_versiones}
+\caption{Tiempo NAS con 32~hilos en modo~3, clases~S y~W, para las tres
+versiones de Python. El eje vertical usa escala logarítmica.}
+\label{fig:versiones-t32}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[t]{0.49\textwidth}
+  \includegraphics[width=\textwidth]{imagenes/versiones/ep_s_speedup_versiones}
+  \caption{Clase~S.}
+  \label{fig:versiones-ep-s}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.49\textwidth}
+  \includegraphics[width=\textwidth]{imagenes/versiones/ep_w_speedup_versiones}
+  \caption{Clase~W.}
+  \label{fig:versiones-ep-w}
+\end{subfigure}
+\caption{EP, modo~3. Speedup por versión de Python en las clases~S y~W.}
+\label{fig:versiones-ep}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[t]{0.49\textwidth}
+  \includegraphics[width=\textwidth]{imagenes/versiones/ft_s_speedup_versiones}
+  \caption{Clase~S.}
+  \label{fig:versiones-ft-s}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.49\textwidth}
+  \includegraphics[width=\textwidth]{imagenes/versiones/ft_w_speedup_versiones}
+  \caption{Clase~W.}
+  \label{fig:versiones-ft-w}
+\end{subfigure}
+\caption{FT, modo~3. Speedup por versión de Python en las clases~S y~W.}
+\label{fig:versiones-ft}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[t]{0.49\textwidth}
+  \includegraphics[width=\textwidth]{imagenes/versiones/cg_s_speedup_versiones}
+  \caption{Clase~S.}
+  \label{fig:versiones-cg-s}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.49\textwidth}
+  \includegraphics[width=\textwidth]{imagenes/versiones/cg_w_speedup_versiones}
+  \caption{Clase~W.}
+  \label{fig:versiones-cg-w}
+\end{subfigure}
+\caption{CG, modo~3. Speedup por versión de Python en las clases~S y~W.}
+\label{fig:versiones-cg}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[t]{0.49\textwidth}
+  \includegraphics[width=\textwidth]{imagenes/versiones/is_s_tiempos_versiones}
+  \caption{Clase~S (tiempo NAS).}
+  \label{fig:versiones-is-s}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.49\textwidth}
+  \includegraphics[width=\textwidth]{imagenes/versiones/is_w_speedup_versiones}
+  \caption{Clase~W (speedup).}
+  \label{fig:versiones-is-w}
+\end{subfigure}
+\caption{IS, modo~3, por versión de Python. En clase~S se muestra el tiempo NAS
+porque el speedup no es fiable (tiempo con un hilo redondeado a 0.00~s). En
+clase~W se muestra el speedup.}
+\label{fig:versiones-is}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[t]{0.49\textwidth}
+  \includegraphics[width=\textwidth]{imagenes/versiones/mg_s_speedup_versiones}
+  \caption{Clase~S.}
+  \label{fig:versiones-mg-s}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.49\textwidth}
+  \includegraphics[width=\textwidth]{imagenes/versiones/mg_w_speedup_versiones}
+  \caption{Clase~W.}
+  \label{fig:versiones-mg-w}
+\end{subfigure}
+\caption{MG, modo~3. Speedup por versión de Python en las clases~S y~W.}
+\label{fig:versiones-mg}
+\end{figure}
